@@ -1,0 +1,39 @@
+name: archetype
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+  postgres:
+    image: postgres:alpine
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_HOST=localhost
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=local
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+  api:
+    image: ghcr.io/archetype-pal/backend:latest
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+    env_file: env_file
+    ports:
+      - 8000:8000
+    volumes:
+      - ./storage:/src/storage
+    depends_on:
+      - postgres
+  image_server:
+    image: daschswiss/sipi
+    ports:
+      - 1024:1024
+    volumes:
+      - ./storage/media:/sipi/images
+
+volumes:
+  postgres:
