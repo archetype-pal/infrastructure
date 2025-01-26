@@ -42,8 +42,14 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro
+      - ./html:/var/www/certbot:ro
     depends_on:
       - api
-
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certs:/etc/letsencrypt
+      - ./html:/var/www/certbot
 volumes:
   postgres:
+  logs:
