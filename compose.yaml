@@ -28,6 +28,14 @@ services:
       - ./storage:/src/storage
     depends_on:
       - postgres
+  frontend:
+    image: ghcr.io/archetype-pal/frontend:latest
+    ports:
+      - 3000:3000
+    volumes:
+      - ./frontend:/src
+    depends_on:
+      - api
   image_server:
     image: daschswiss/sipi
     ports:
