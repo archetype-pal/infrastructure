@@ -16,6 +16,7 @@ The `compose.yaml` file here is already prepared using production configuration.
 ### Configure your environment variables
 create a new file `env_file` and fill it with the required variables. A working example can be found [here](./env_file.example)
 
+
 ### Setup the TLS certificates on your server
 To generate TLS certificates, run the following commands  
 assuming your domain is called: `archetype.myserver.com`  
@@ -31,10 +32,10 @@ Make sure to add `A records` that point to your server before continuing.
 
 ### Enable TLS on the server nginx 
 In your compose.yaml file, comment out line 51:  
-`- ./nginx.without_ssl.conf:/etc/nginx/nginx.conf:ro`
+`- ./nginx/no_ssl.conf:/etc/nginx/nginx.conf:ro`
 
 and uncomment line 52:  
-`- ./nginx.with_ssl.conf:/etc/nginx/nginx.conf:ro`
+`- ./nginx/ssl.conf:/etc/nginx/nginx.conf:ro`
 
 
 Then continue with the following commands:  
