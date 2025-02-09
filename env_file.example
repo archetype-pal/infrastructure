@@ -13,3 +13,7 @@ CORS_ALLOWED_ORIGINS=https://archetype.myserver.com
 
 # CSRF origins are your django admin http/https + domains for your frontend and backend.
 CSRF_TRUSTED_ORIGINS=https://archetype.myserver.com,https://api.archetype.myserver.com
+
+# this is the domain of the IIIF server as managed by the nginx server
+# you should only change the domain part to match your domain
+IIIF_HOST=https://api.archetype.myserver.com/sipi
