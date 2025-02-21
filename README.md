@@ -19,15 +19,15 @@ create a new file `env_file` and fill it with the required variables. A working 
 
 ### Setup the TLS certificates on your server
 To generate TLS certificates, run the following commands  
-assuming your domain is called: `archetype.myserver.com`  
+assuming your domain is called: `archetype.myserver.com` and `api.archetype.myserver.com`, 
 Make sure to add `A records` that point to your server before continuing.
 
 ```bash
 >>> docker compose up -d
 # create certificate for client website
->>> docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d archetype.myserver.com
+>>> docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $APP_DOMAIN
 # create certificate for admin website and API
->>> docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d api.archetype.myserver.com
+>>> docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $API_DOMAIN
 ```
 
 ### Enable TLS on the server nginx 

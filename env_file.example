@@ -5,6 +5,10 @@ SITE_NAME="Archetype"
 # Database
 DATABASE_URL="postgresql://postgres:password@postgres:5432/local"
 
+# Hosts for the nginx server -- Replace with your domain for API and website
+API_DOMAIN=api.archetype.myserver.com
+APP_DOMAIN=archetype.myserver.com
+
 # CORS and Hosts
 # Allowed hosts contains the domains that are allowed to host your server. Don't preprend with http/https.
 ALLOWED_HOSTS=archetype.myserver.com
