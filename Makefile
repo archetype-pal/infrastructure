@@ -1,8 +1,13 @@
+include env_file
+export $(shell sed 's/=.*//' .env)
+
 build:
 	docker compose build
 up:
 	docker compose up
-up-bg:  # bg stands for background
+down:
+	docker compose down
+up-background:  # bg stands for background
 	docker compose up -d
 makemigrations:
 	docker compose run --rm api python manage.py makemigrations
@@ -24,3 +29,6 @@ clear_index:
 clean:
 	poetry run black .
 	poetry run isort .
+certbot:
+	docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $(APP_DOMAIN)
+	docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $(API_DOMAIN)

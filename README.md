@@ -18,28 +18,28 @@ create a new file `env_file` and fill it with the required variables. A working 
 
 
 ### Setup the TLS certificates on your server
-To generate TLS certificates, run the following commands  
 assuming your domain is called: `archetype.myserver.com` and `api.archetype.myserver.com`, 
 Make sure to add `A records` that point to your server before continuing.
 
+To generate TLS certificates, run the following commands:
+
 ```bash
->>> docker compose up -d
-# create certificate for client website
->>> docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $APP_DOMAIN
-# create certificate for admin website and API
->>> docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $API_DOMAIN
+>>> make up-background
+# create certificate for client and admin websites
+>>> make certbot
 ```
+Make sure to instal `make` first using `sudo apt install make` if you're on ubuntu or look for equivalent commands for your operating system.
 
 ### Enable TLS on the server nginx 
 In your compose.yaml file, comment out line 51:  
-`- ./nginx/no_ssl.conf:/etc/nginx/nginx.conf:ro`
+`- ./nginx/no_ssl.conf...ro`
 
 and uncomment line 52:  
-`- ./nginx/ssl.conf:/etc/nginx/nginx.conf:ro`
+`- ./nginx/ssl.conf...ro`
 
 
 Then continue with the following commands:  
 ```bash
->>> docker compose down
->>> docker compose up -d
+>>> make down
+>>> make up-background
 ```
