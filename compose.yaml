@@ -50,10 +50,9 @@ services:
       - "80:80"
       - "443:443"
     env_file: env_file
-    command: /bin/sh -c "envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && exec nginx -g 'daemon off;'"
     volumes:
-      - ./nginx/no_ssl.conf:/etc/nginx/nginx.conf.template:ro
-      # - ./nginx/ssl.conf:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/no_ssl.conf:/etc/nginx/templates/default.conf.template:ro
+      # - ./nginx/ssl.conf:/etc/nginx/templates/default.conf.template:ro
       - ./certs:/etc/nginx/certs:ro
       - ./html:/var/www/certbot:ro
     depends_on:
@@ -64,6 +63,8 @@ services:
       - ./certs:/etc/letsencrypt
       - ./html:/var/www/certbot
       - ./logs:/var/log/letsencrypt
+    depends_on:
+      - nginx
 volumes:
   postgres:
   logs:
