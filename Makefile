@@ -1,5 +1,5 @@
 include env_file
-export $(shell sed 's/=.*//' .env)
+export $(shell sed 's/=.*//' env_file)
 
 build:
 	docker compose build
