@@ -68,16 +68,11 @@ services:
   ftp:
     image: fauria/vsftpd
     restart: always
-    environment:
-      - FTP_USER=archetype_user
-      - FTP_PASS=password
-      - PASV_ADDRESS=127.0.0.1  # Change this if needed
-      - PASV_MIN_PORT=21100
-      - PASV_MAX_PORT=21110
+    env_file: env_file
     ports:
       - "21:21"
       - "21100-21110:21100-21110"
-    volumes:
+    volumes:  # make sure to update archetype_user below to match the user in the env_file 
       - ./storage/media:/home/vsftpd/archetype_user
   
 volumes:

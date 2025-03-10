@@ -22,3 +22,10 @@ CSRF_TRUSTED_ORIGINS=https://archetype.myserver.com,https://api.archetype.myserv
 # this is the domain of the IIIF server as managed by the nginx server
 # you should only change the domain part to match your domain
 IIIF_HOST=https://api.archetype.myserver.com/sipi
+
+## For the FTP server
+FTP_USER=archetype_user
+FTP_PASS=password
+PASV_ADDRESS=api.my_server.com  # Change this if needed
+PASV_MIN_PORT=21100
+PASV_MAX_PORT=21110
