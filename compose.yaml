@@ -31,7 +31,7 @@ services:
     depends_on:
       - postgres
   frontend:
-    image: ghcr.io/archetype-pal/frontend:latest
+    image: ghcr.io/archetype-pal/frontend:nightly-test
     ports:
       - 3000:3000
     volumes:
