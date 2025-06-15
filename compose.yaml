@@ -24,16 +24,14 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings
     env_file: env_file
-    ports:
-      - 8000:80
     volumes:
-      - ./storage:/src/storage
+      - ./storage:/app/storage
     depends_on:
       - postgres
   frontend:
-    image: ghcr.io/archetype-pal/frontend:nightly-test
-    ports:
-      - 3000:3000
+    image: ghcr.io/archetype-pal/frontend:dev
+    environment:
+      - NEXT_PUBLIC_API_URL=https://archetype.elghareeb.space
     volumes:
       - ./frontend:/src
     depends_on:
@@ -51,8 +49,7 @@ services:
       - "443:443"
     env_file: env_file
     volumes:
-      - ./nginx/no_ssl.conf:/etc/nginx/templates/default.conf.template:ro
-      # - ./nginx/ssl.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
       - ./certs:/etc/nginx/certs:ro
       - ./html:/var/www/certbot:ro
     depends_on:
