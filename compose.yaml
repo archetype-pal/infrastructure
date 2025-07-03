@@ -70,7 +70,28 @@ services:
       - "21100-21110:21100-21110"
     volumes:  # make sure to update archetype_user below to match the user in the env_file 
       - ./storage/media:/home/vsftpd/archetype_user
-  
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 30s
+      retries: 50
+
+  celery:
+    image: ghcr.io/archetype-pal/backend:latest
+    command: celery -A config worker -l info
+    depends_on:
+      - redis
+      - postgres
+    env_file: env_file
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+
 volumes:
   postgres:
   logs:
