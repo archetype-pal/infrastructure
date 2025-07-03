@@ -57,3 +57,6 @@ HISTORICAL_ITEM_HAIR_TYPES="FHFH,FHHF,HFFH,HFHF,Mixed"
 REPOSITORY_TYPES="Library,Institution,Person,Online Resource"
 CHARACTER_ITEM_TYPES="Majuscule Letter,Minuscule Letter,Numeral,Punctuation,Symbol,Accent"
 
+# --------------------------- FRONTEND CONFIGURATION ---------------------------
+NEXT_PUBLIC_API_URL=http://localhost
+

@@ -30,8 +30,7 @@ services:
       - postgres
   frontend:
     image: ghcr.io/archetype-pal/frontend:dev
-    environment:
-      - NEXT_PUBLIC_API_URL=https://archetype.elghareeb.space
+    env_file: env_file
     volumes:
       - ./frontend:/src
     depends_on:
