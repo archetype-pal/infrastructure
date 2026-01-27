@@ -1,0 +1,42 @@
+# Archetype Project Rules
+
+## Project Overview
+This is the Archetype project (v3). The project primarily runs on **https://archetype.elghareeb.space** in production.
+
+## Build and Run Commands
+
+### Makefile Commands
+The project has a Makefile located in the `infrastructure/` directory with the following commands:
+- `make up` - Start all services with docker compose
+- `make down` - Stop all services
+- `make up-background` - Start all services in detached mode (background)
+- `make migrate` - Run database migrations
+- `make update_index` - Rebuild the search index
+- `make clear_index` - Clear the search index
+- `make certbot` - Run certbot for SSL certificate management
+
+**Note:** All make commands should be run from the `infrastructure/` directory, or use `make -C infrastructure/` from the project root.
+
+### Docker Compose
+The project uses **Docker Compose** as the primary method for running the application. The `compose.yaml` file is located in the `infrastructure/` directory.
+
+Key services:
+- `api` - Django backend API
+- `frontend` - Frontend application
+- `postgres` - PostgreSQL database
+- `elasticsearch` - Search engine
+- `redis` - Cache and message broker
+- `celery` - Background task worker
+- `nginx` - Web server and reverse proxy
+- `image_server` - Sipi image server
+
+## Development Workflow
+- Use `docker compose` commands from the `infrastructure/` directory
+- The Makefile provides convenient shortcuts for common operations
+- Production URL: https://archetype.elghareeb.space
+
+## Project Structure
+- `backend/` - Django backend application
+- `frontend/` - Frontend application
+- `infrastructure/` - Docker compose configuration, nginx config, and Makefile
+- `site-gh/` - GitHub site/documentation
