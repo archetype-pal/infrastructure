@@ -30,19 +30,23 @@ services:
       - postgres
   frontend:
     image: ghcr.io/archetype-pal/frontend:dev
-    env_file: env_file
     volumes:
-      - ./frontend:/src
+      - ../frontend:/app
+      - next_build:/app/.next
+    env_file: env_file
     depends_on:
       - api
   image_server:
     image: daschswiss/sipi
+    user: "14:50"
     ports:
       - 1024:1024
     volumes:
       - ./storage/media:/sipi/images
+      - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
+      - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
   nginx:
-    image: nginx:latest
+    image: nginx:alpine
     ports:
       - "80:80"
       - "443:443"
@@ -51,6 +55,8 @@ services:
       - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
       - ./certs:/etc/nginx/certs:ro
       - ./html:/var/www/certbot:ro
+      - ./nginx-entrypoint.sh:/docker-entrypoint.d/nginx-entrypoint.sh:ro
+    entrypoint: ["/bin/sh", "/docker-entrypoint.d/nginx-entrypoint.sh"]
     depends_on:
       - api
   certbot:
@@ -61,20 +67,22 @@ services:
       - ./logs:/var/log/letsencrypt
     depends_on:
       - nginx
-  ftp:
-    image: fauria/vsftpd
-    restart: always
-    env_file: env_file
-    ports:
-      - "21:21"
-      - "21100-21110:21100-21110"
-    volumes:  # make sure to update archetype_user below to match the user in the env_file 
-      - ./storage/media:/home/vsftpd/archetype_user
+  # ftp:
+  #   image: fauria/vsftpd
+  #   restart: always
+  #   env_file: env_file
+  #   ports:
+  #     - "21:21"
+  #     - "21100-21110:21100-21110"
+  #   volumes:  # make sure to update archetype_user below to match the user in the env_file 
+  #     - ./storage/media:/home/vsftpd/archetype_user
 
   redis:
-    image: redis:alpine
+    image: redis:7.4-alpine
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -96,3 +104,5 @@ volumes:
   postgres:
   logs:
   elasticsearch_data:
+  next_build:
+  redis_data:
