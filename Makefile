@@ -5,6 +5,8 @@ up:
 	docker compose up
 down:
 	docker compose down
+shell:
+	docker compose run --rm --remove-orphans api python manage.py shell_plus
 up-background:
 	docker compose up -d
 migrate:

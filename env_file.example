@@ -6,8 +6,10 @@ SITE_NAME="Default Archetype"
 # change the username and password for improved security
 DATABASE_URL="postgresql://postgres:password@postgres:5432/local"
 
-# IIIF server 
-# you should change the domain part to match your domain
+# IIIF image server (Sipi). Thumbnails in search use this; the browser must be able to load it.
+# - With nginx on port 80 proxying /sipi: use http://localhost/sipi (or https://YourDomain/sipi in prod)
+# - Without nginx (e.g. dev with frontend on 3401): use http://localhost:1024/ to hit Sipi directly.
+# After changing IIIF_HOST, run: make -C infrastructure update_index
 IIIF_HOST=http://localhost/sipi
 
 # Hosts for the nginx server -- Replace with your domain for API and website
