@@ -12,8 +12,6 @@ up-background:
 migrate:
 	docker compose run --rm api python manage.py migrate
 update_index:
-	docker compose run --rm api python manage.py rebuild_index --noinput
-clear_index:
-	docker compose run --rm api python manage.py clear_index --noinput
+	docker compose run --rm api python manage.py setup_search_indexes
 certbot:
 	docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $(DOMAIN)
