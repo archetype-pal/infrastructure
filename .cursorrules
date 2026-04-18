@@ -1,7 +1,7 @@
 # Archetype Project Rules
 
 ## Project Overview
-This is the Archetype project (v3). The project primarily runs on **https://archetype.elghareeb.space** in production.
+This is the Archetype project. The project primarily runs on **https://archetype.elghareeb.space** in production.
 
 ## Build and Run Commands
 
@@ -12,7 +12,6 @@ The project has a Makefile located in the `infrastructure/` directory with the f
 - `make up-background` - Start all services in detached mode (background)
 - `make migrate` - Run database migrations
 - `make update_index` - Rebuild the search index
-- `make clear_index` - Clear the search index
 - `make certbot` - Run certbot for SSL certificate management
 
 **Note:** All make commands should be run from the `infrastructure/` directory, or use `make -C infrastructure/` from the project root.
