@@ -3,7 +3,12 @@ DEBUG=True
 SITE_NAME="Default Archetype"
 
 # Database
-# change the username and password for improved security
+# Change the username and password for improved security.
+# Keep POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD aligned with DATABASE_URL.
+POSTGRES_IMAGE=postgres:18.3-bookworm
+POSTGRES_DB=local
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=password
 DATABASE_URL="postgresql://postgres:password@postgres:5432/local"
 
 # IIIF image server (Sipi). Thumbnails in search use this; the browser must be able to load it.
@@ -61,4 +66,3 @@ CHARACTER_ITEM_TYPES="Majuscule Letter,Minuscule Letter,Numeral,Punctuation,Symb
 
 # --------------------------- FRONTEND CONFIGURATION ---------------------------
 NEXT_PUBLIC_API_URL=http://localhost
-

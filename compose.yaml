@@ -11,15 +11,24 @@ services:
       - "7700:7700"
 
   postgres:
-    image: postgres:17
+    image: ${POSTGRES_IMAGE:-postgres:18.3-bookworm}
     volumes:
-      - postgres:/var/lib/postgresql/data
+      # PostgreSQL 18 Docker images use versioned PGDATA under /var/lib/postgresql.
+      # Keep the volume mounted at the parent so future major upgrades can use
+      # the official versioned layout.
+      - postgres18:/var/lib/postgresql
     environment:
       - POSTGRES_HOST=localhost
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=local
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=${POSTGRES_DB:-local}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+      - PGDATA=/var/lib/postgresql/18/docker
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
   api:
     image: ghcr.io/archetype-pal/backend:latest
     environment:
@@ -30,7 +39,7 @@ services:
       - ./storage:/app/storage
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       meilisearch:
         condition: service_started
       redis:
@@ -100,16 +109,19 @@ services:
     image: ghcr.io/archetype-pal/backend:latest
     command: celery -A config worker -l info
     depends_on:
-      - redis
-      - postgres
-      - meilisearch
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
     env_file: env_file
     environment:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - MEILISEARCH_URL=http://meilisearch:7700
 volumes:
-  postgres:
+  postgres18:
   logs:
   meilisearch_data:
   next_build:

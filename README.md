@@ -25,6 +25,8 @@ Following the instructions require a little bit of a technical background.
 2. Adust the project configuration to suit your needs.  
     Create a new file `env_file` and fill it with the required variables. A working example can be found [here](./env_file.example).
 
+    Existing deployments with PostgreSQL 17 data need a one-time database upgrade before starting the normal PostgreSQL 18 stack. Follow [the PostgreSQL 18 upgrade runbook](./docs/postgresql-18-upgrade.md) first.
+
 3. Run the project in the background 
     ```bash
     >>> make up-background

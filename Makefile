@@ -1,5 +1,5 @@
 include env_file
-export $(shell sed 's/=.*//' env_file)
+export
 
 up:
 	docker compose up
@@ -13,5 +13,9 @@ migrate:
 	docker compose run --rm api python manage.py migrate
 update_index:
 	docker compose run --rm api python manage.py setup_search_indexes
+postgres-version:
+	docker compose exec -T postgres sh -c 'psql -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -c "SHOW server_version;"'
+postgres-upgrade-17-to-18:
+	./scripts/upgrade-postgres-17-to-18.sh
 certbot:
 	docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d $(DOMAIN)
