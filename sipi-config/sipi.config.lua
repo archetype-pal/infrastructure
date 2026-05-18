@@ -133,21 +133,30 @@ sipi = {
     --
     -- maximal size of the cache
     -- The cache will be purged if either the maximal size or maximal number
-    -- of files is reached
+    -- of files is reached.
     --
-    cachesize = '20M',
+    -- The previous 20M / 8-file limit was effectively a "no caching" setting
+    -- for a manuscript viewer: a single folio at several zoom levels easily
+    -- fills 8 slots, and the 20M ceiling forces a purge after a handful of
+    -- requests. The viewer ends up re-tiling on every pan/zoom. The values
+    -- below give us a usable working set without unbounded disk growth —
+    -- monitor via `DELETE /api/cache` and SIPI's startup log.
+    --
+    cachesize = '512M',
 
     --
     -- maximal number of files to be cached
     -- The cache will be purged if either the maximal size or maximal number
-    -- of files is reached
+    -- of files is reached.
     --
-    cache_nfiles = 8,
+    cache_nfiles = 4096,
 
     --
-    -- if the cache becomes full, the given percentage of file space is marked for reuse
+    -- If the cache becomes full, the given percentage of file space is
+    -- marked for reuse (LRU eviction). 0.20 = reclaim 20% on each purge,
+    -- so the working set settles instead of thrashing at the boundary.
     --
-    cache_hysteresis = 0.15,
+    cache_hysteresis = 0.20,
 
     --
     -- Path to the directory where the scripts for the routes defined below are to be found
