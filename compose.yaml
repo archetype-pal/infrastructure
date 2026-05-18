@@ -133,6 +133,46 @@ services:
       retries: 3
       start_period: 30s
 
+  # Periodic logical backup of the application database. Runs in-process
+  # (no host cron / no Kubernetes CronJob assumed) and writes compressed
+  # dumps to a host-mounted `./backups/` directory so operators can pull
+  # them off the box without entering the container.
+  #
+  # Retention: 14 days. Schedule: once every 24h after a one-minute warm-up
+  # so a stack restart doesn't immediately re-dump.
+  #
+  # See infrastructure/docs/backup-runbook.md for restore steps and the
+  # off-site copy policy.
+  pg_backup:
+    image: postgres:alpine
+    env_file: env_file
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        sleep 60
+        mkdir -p /backups
+        while true; do
+          ts="$$(date -u +%Y%m%dT%H%M%SZ)"
+          out="/backups/local-$$ts.sql.gz"
+          echo "[pg_backup] starting dump → $$out"
+          if pg_dump "$$DATABASE_URL" | gzip > "$$out.partial"; then
+            mv "$$out.partial" "$$out"
+            echo "[pg_backup] OK $$(wc -c < "$$out") bytes"
+          else
+            echo "[pg_backup] FAILED — leaving .partial for inspection" >&2
+            rm -f "$$out.partial" || true
+          fi
+          find /backups -name 'local-*.sql.gz' -mtime +14 -delete
+          sleep 86400
+        done
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
 volumes:
   postgres18:
   logs:
