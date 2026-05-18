@@ -120,6 +120,19 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - MEILISEARCH_URL=http://meilisearch:7700
+    # `inspect ping` is Celery's canonical liveness probe — it round-trips
+    # through the broker and the worker's mingle queue, so a green check
+    # means "worker is consuming tasks", not just "process exists". `-d`
+    # targets THIS container's worker name; `$$HOSTNAME` is escaped so
+    # docker-compose passes a literal `$HOSTNAME` for the shell to expand
+    # inside the container.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   postgres18:
   logs:
