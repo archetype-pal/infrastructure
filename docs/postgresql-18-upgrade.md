@@ -11,12 +11,12 @@ The old PostgreSQL 17 volume is intentionally left untouched. If an upgrade fail
 For a new installation with no existing PostgreSQL 17 volume:
 
 ```bash
-make up-background
-make migrate
-make postgres-version
+just up-bg
+just migrate
+just postgres-version
 ```
 
-`make postgres-version` should report PostgreSQL 18.x.
+`just postgres-version` should report PostgreSQL 18.x.
 
 ## Existing PostgreSQL 17 Deployment
 
@@ -34,7 +34,7 @@ Before upgrading:
 Then run:
 
 ```bash
-make postgres-upgrade-17-to-18
+just postgres-upgrade-17-to-18
 ```
 
 For non-interactive server runs:
@@ -73,8 +73,8 @@ The example database name in this repo is `local`. Do not assume production uses
 After the upgrade:
 
 ```bash
-make postgres-version
-make migrate
+just postgres-version
+just migrate
 docker compose run --rm api python manage.py check
 ```
 
@@ -82,7 +82,7 @@ Rebuild search indexes if Meilisearch was recreated or search results drift.
 This recreates the index schemas and reloads documents from the restored DB:
 
 ```bash
-make reindex
+just reindex
 ```
 
 Rollback rule: never start PostgreSQL 17 on a PostgreSQL 18 data directory.

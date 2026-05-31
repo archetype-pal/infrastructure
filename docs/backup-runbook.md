@@ -140,6 +140,12 @@ flag in `infrastructure/compose.yaml` to change it. Don't drop below
 ## Manual one-shot dump
 
 ```sh
+just backup
+```
+
+which runs:
+
+```sh
 docker compose run --rm pg_backup sh -c \
     'pg_dump "$DATABASE_URL" | gzip > /backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz'
 ```

@@ -9,7 +9,7 @@ Following the instructions require a little bit of a technical background.
   - Open a terminal and run `xcode-select --install`
 - `Git`: Install from https://git-scm.com/downloads
 - `Docker`: Install from https://docs.docker.com/engine/install/
-- `Makefile`: Not included with windows! User is encouraged to install Makefile on windows independently.
+- `just`: Command runner used for the shortcuts below. Install from https://github.com/casey/just#installation (`brew install just`, `cargo install just`, or a prebuilt binary on Windows). You can also run the underlying `docker compose` commands directly if you'd rather not install it.
 
 
 ## Steps
@@ -29,19 +29,19 @@ Following the instructions require a little bit of a technical background.
 
 3. Run the project in the background 
     ```bash
-    >>> make up-background
+    >>> just up-bg
     ```
 4. Run the database migrations
     ```bash
-    >>> make migrate
+    >>> just migrate
     ```
 5. Build the search indexes (creates the Meilisearch schemas and loads documents from the DB)
     ```bash
-    >>> make reindex
+    >>> just reindex
     ```
 6. Open the website in your browser by navigating to `http://localhost`
 
-> Run `make` (or `make help`) at any time to see every available command.
+> Run `just` (or `just --list`) at any time to see every available command.
 
 
 ## Setup the TLS certificates on your server
@@ -52,7 +52,7 @@ start by adding an `A record` that points to your server before continuing.
 
 To generate TLS certificates, run the following commands:
 ```bash
->>> make certbot
+>>> just certbot
 ```
 
 ### Enable TLS on the server nginx 
@@ -64,14 +64,14 @@ you only need to reload nginx:
 >>> docker compose restart nginx
 ```
 
-> Certificates expire after 90 days. Re-run `make certbot` (then restart nginx)
+> Certificates expire after 90 days. Re-run `just certbot` (then restart nginx)
 > to renew, or wire it into a cron job on the host.
 
 ## troubleshooting
 Since this setup process is very delicate, it's important to know how to check the logs.  
 Run the following command
 ```bash
->>> make logs
+>>> just logs
 ```
-to see a real-time view of the logs across all services. `make ps` shows which
+to see a real-time view of the logs across all services. `just ps` shows which
 services are up.

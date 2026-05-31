@@ -14,7 +14,7 @@ DATABASE_URL="postgresql://postgres:password@postgres:5432/local"
 # IIIF image server (Sipi). Thumbnails in search use this; the browser must be able to load it.
 # - With nginx on port 80 proxying /sipi: use http://localhost/sipi (or https://YourDomain/sipi in prod)
 # - Without nginx (e.g. dev with frontend on 3401): use http://localhost:1024/ to hit Sipi directly.
-# After changing IIIF_HOST, run: make -C infrastructure update_index
+# After changing IIIF_HOST, run `just reindex` from the infrastructure/ directory.
 IIIF_HOST=http://localhost/sipi
 
 # Hosts for the nginx server -- Replace with your domain for API and website
