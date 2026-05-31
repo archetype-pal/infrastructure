@@ -78,10 +78,11 @@ make migrate
 docker compose run --rm api python manage.py check
 ```
 
-Rebuild search indexes if Meilisearch was recreated or search results drift:
+Rebuild search indexes if Meilisearch was recreated or search results drift.
+This recreates the index schemas and reloads documents from the restored DB:
 
 ```bash
-make update_index
+make reindex
 ```
 
 Rollback rule: never start PostgreSQL 17 on a PostgreSQL 18 data directory.

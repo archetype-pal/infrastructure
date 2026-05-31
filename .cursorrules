@@ -6,13 +6,22 @@ This is the Archetype project. The project primarily runs on **https://archetype
 ## Build and Run Commands
 
 ### Makefile Commands
-The project has a Makefile located in the `infrastructure/` directory with the following commands:
-- `make up` - Start all services with docker compose
-- `make down` - Stop all services
-- `make up-background` - Start all services in detached mode (background)
+The project has a Makefile in the `infrastructure/` directory. Run `make` (or `make help`)
+to see the full, self-documenting list. The common ones:
+
+- `make up` / `make up-background` - Start all services (foreground / detached)
+- `make down` - Stop all services (volumes/data kept)
+- `make down-volumes` - Stop AND delete volumes (DESTROYS the database)
+- `make restart` / `make restart-api` - Restart everything / just the api
+- `make logs` - Follow logs for all services
+- `make ps` - Show service status
 - `make migrate` - Run database migrations
-- `make update_index` - Rebuild the search index
-- `make certbot` - Run certbot for SSL certificate management
+- `make reindex` - Rebuild all Meilisearch indexes from the DB (schema + documents)
+- `make setup-search-indexes` / `make sync-all-search-indexes` - Index schema only / sync data
+- `make celery-status` - Inspect active Celery workers
+- `make backup` - Take a one-off gzipped pg_dump into `./backups/`
+- `make postgres-version` / `make postgres-upgrade-17-to-18` - PostgreSQL version / major upgrade
+- `make certbot` - Obtain/renew Let's Encrypt certificates
 
 **Note:** All make commands should be run from the `infrastructure/` directory, or use `make -C infrastructure/` from the project root.
 
@@ -20,22 +29,24 @@ The project has a Makefile located in the `infrastructure/` directory with the f
 The project uses **Docker Compose** as the primary method for running the application. The `compose.yaml` file is located in the `infrastructure/` directory.
 
 Key services:
-- `api` - Django backend API
-- `frontend` - Frontend application
-- `postgres` - PostgreSQL database
-- `elasticsearch` - Search engine
-- `redis` - Cache and message broker
+- `api` - Django backend API (image pulled from ghcr.io/archetype-pal/backend)
+- `frontend` - Next.js frontend (image pulled from ghcr.io/archetype-pal/frontend)
+- `postgres` - PostgreSQL 18 database
+- `meilisearch` - Search engine (replaced Elasticsearch)
+- `redis` - Cache and Celery message broker
 - `celery` - Background task worker
-- `nginx` - Web server and reverse proxy
-- `image_server` - Sipi image server
+- `nginx` - Web server and reverse proxy (TLS termination)
+- `image_server` - Sipi IIIF image server
+- `certbot` - Let's Encrypt certificate issuance/renewal
+- `pg_backup` - Periodic logical pg_dump sidecar (see docs/backup-runbook.md)
 
 ## Development Workflow
-- Use `docker compose` commands from the `infrastructure/` directory
-- The Makefile provides convenient shortcuts for common operations
+- Use `docker compose` commands (or the Makefile) from the `infrastructure/` directory.
+- The Makefile provides convenient shortcuts for common operations; `make help` lists them.
 - Production URL: https://archetype.elghareeb.space
 
 ## Project Structure
-- `backend/` - Django backend application
-- `frontend/` - Frontend application
-- `infrastructure/` - Docker compose configuration, nginx config, and Makefile
-- `site-gh/` - GitHub site/documentation
+- `api/` - Django backend application
+- `frontend/` - Next.js frontend application
+- `infrastructure/` - Docker Compose configuration, nginx config, Sipi config, and the Makefile
+- `site-gh/` - GitHub Pages site/documentation

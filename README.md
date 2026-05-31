@@ -35,7 +35,13 @@ Following the instructions require a little bit of a technical background.
     ```bash
     >>> make migrate
     ```
-5. Open the website in your browser by navigating to `http://localhost`
+5. Build the search indexes (creates the Meilisearch schemas and loads documents from the DB)
+    ```bash
+    >>> make reindex
+    ```
+6. Open the website in your browser by navigating to `http://localhost`
+
+> Run `make` (or `make help`) at any time to see every available command.
 
 
 ## Setup the TLS certificates on your server
@@ -50,19 +56,22 @@ To generate TLS certificates, run the following commands:
 ```
 
 ### Enable TLS on the server nginx 
-After running the above command. You should now have the cert folder populated with
-the needed files.  
-Open the file `nginx.conf` and uncomment the certificate files as explained there. 
-
-Then run the following command:  
+After running the above command, the `certs/` folder is populated with the
+files Let's Encrypt issued. `nginx.conf` already points at
+`certs/live/$DOMAIN/fullchain.pem` and `privkey.pem`, so once the certs exist
+you only need to reload nginx:
 ```bash
 >>> docker compose restart nginx
 ```
 
+> Certificates expire after 90 days. Re-run `make certbot` (then restart nginx)
+> to renew, or wire it into a cron job on the host.
+
 ## troubleshooting
 Since this setup process is very delicate, it's important to know how to check the logs.  
-run the following command
+Run the following command
 ```bash
->>> docker compose logs -f
+>>> make logs
 ```
-to see a real-time view over the logs.
+to see a real-time view of the logs across all services. `make ps` shows which
+services are up.
