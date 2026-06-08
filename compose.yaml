@@ -4,6 +4,10 @@ services:
     image: getmeili/meilisearch:v1.45.2
     environment:
       - MEILI_ENV=development
+      # Migrate the on-disk index format in place when the image is bumped to a
+      # newer Meilisearch. Without this, a version mismatch makes the server
+      # refuse to start. No-op when versions already match. Safe — no embedders.
+      - MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE=true
     # No MEILI_MASTER_KEY in development: requests without a key are allowed.
     volumes:
       - meilisearch_data:/meili_data
