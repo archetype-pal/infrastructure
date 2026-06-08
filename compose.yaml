@@ -1,7 +1,7 @@
 name: archetype
 services:
   meilisearch:
-    image: getmeili/meilisearch:latest
+    image: getmeili/meilisearch:v1.45.2
     environment:
       - MEILI_ENV=development
     # No MEILI_MASTER_KEY in development: requests without a key are allowed.
@@ -11,7 +11,7 @@ services:
       - "7700:7700"
 
   postgres:
-    image: ${POSTGRES_IMAGE:-postgres:18.3-bookworm}
+    image: ${POSTGRES_IMAGE:-postgres:18.4-trixie}
     volumes:
       # PostgreSQL 18 Docker images use versioned PGDATA under /var/lib/postgresql.
       # Keep the volume mounted at the parent so future major upgrades can use
@@ -53,7 +53,7 @@ services:
     depends_on:
       - api
   image_server:
-    image: daschswiss/sipi
+    image: daschswiss/sipi:v5.0.1
     user: "14:50"
     ports:
       - 1024:1024
@@ -62,7 +62,7 @@ services:
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
       - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
   nginx:
-    image: nginx:alpine
+    image: nginx:1.30-alpine
     ports:
       - "80:80"
       - "443:443"
@@ -76,7 +76,7 @@ services:
     depends_on:
       - api
   certbot:
-    image: certbot/certbot
+    image: certbot/certbot:v5.6.0
     volumes:
       - ./certs:/etc/letsencrypt
       - ./html:/var/www/certbot
@@ -94,7 +94,7 @@ services:
   #     - ./storage/media:/home/vsftpd/archetype_user
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8-alpine
     ports:
       - "6379:6379"
     volumes:
@@ -144,7 +144,7 @@ services:
   # See infrastructure/docs/backup-runbook.md for restore steps and the
   # off-site copy policy.
   pg_backup:
-    image: postgres:alpine
+    image: postgres:18-alpine
     env_file: env_file
     command:
       - sh
