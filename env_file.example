@@ -11,11 +11,41 @@ POSTGRES_USER=postgres
 POSTGRES_PASSWORD=password
 DATABASE_URL="postgresql://postgres:password@postgres:5432/local"
 
+# Search (Meilisearch). Meilisearch is NOT exposed on the host — only the api and
+# celery containers reach it over the internal compose network at
+# http://meilisearch:7700.
+# - PRODUCTION: leave MEILI_ENV at its default (production), set a long random
+#   MEILI_MASTER_KEY (>= 16 bytes), and configure the Django search client to send it.
+# - LOCAL DEV: set MEILI_ENV=development to run without a key.
+MEILI_ENV=development
+MEILI_MASTER_KEY=""
+
+# Redis. In production set a password (the redis container runs --requirepass).
+# Redis is not exposed on the host. The api/celery containers must include the
+# password in their Redis/Celery URLs, e.g.
+#   CELERY_BROKER_URL=redis://:<REDIS_PASSWORD>@redis:6379/0
+# Leave empty for local dev to keep auth disabled (matches the previous default).
+REDIS_PASSWORD=""
+
+# Container image tags. Pin to an immutable release tag (or @sha256: digest) for
+# reproducible, rollback-able deploys instead of mutable :latest/:dev.
+# BACKEND_IMAGE=ghcr.io/archetype-pal/backend:vX.Y.Z
+# FRONTEND_IMAGE=ghcr.io/archetype-pal/frontend:vX.Y.Z
+
 # IIIF image server (Sipi). Thumbnails in search use this; the browser must be able to load it.
 # - With nginx on port 80 proxying /sipi: use http://localhost/sipi (or https://YourDomain/sipi in prod)
 # - Without nginx (e.g. dev with frontend on 3401): use http://localhost:1024/ to hit Sipi directly.
 # After changing IIIF_HOST, run `just reindex` from the infrastructure/ directory.
 IIIF_HOST=http://localhost/sipi
+
+# SIPI hardening (read by sipi-config/sipi.config.lua via os.getenv). Set these in
+# production to override the vendored stock-demo defaults. Leaving them unset keeps
+# the demo values, which are publicly known; the control/admin routes are also
+# denied at the nginx /sipi proxy as defense-in-depth.
+# SIPI_JWT_SECRET=  # must be exactly 42 characters
+# SIPI_ADMIN_USER=
+# SIPI_ADMIN_PASSWORD=
+# SIPI_LOGLEVEL=WARNING  # set DEBUG only for local debugging
 
 # Hosts for the nginx server -- Replace with your domain for API and website
 DOMAIN=localhost

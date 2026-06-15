@@ -19,6 +19,19 @@
 -- You should have received a copy of the GNU Affero General Public
 -- License along with Sipi.  If not, see <http://www.gnu.org/licenses/>.
 --
+
+-- Read an environment variable, returning the default when it is unset OR set
+-- to an empty string. (docker-compose passes unset overrides as "", which
+-- os.getenv reports as a truthy empty string — `os.getenv(k) or default` would
+-- otherwise wrongly keep "".)
+local function env_or(key, default)
+    local value = os.getenv(key)
+    if value == nil or value == '' then
+        return default
+    end
+    return value
+end
+
 sipi = {
     --
     -- The user under which the Sipi server should run. Use this only if Sipi should setuid to a particular user after
@@ -195,8 +208,11 @@ sipi = {
 
     --
     -- The secret for generating JWT's (JSON Web Tokens) (exactly 42 characters)
+    -- Inject via SIPI_JWT_SECRET in production. The fallback below is the stock
+    -- SIPI demo secret and is publicly known — never rely on it for a real
+    -- deployment. (JWT-gated routes are also denied at the nginx proxy.)
     --
-    jwt_secret = 'UP 4888, nice 4-8-4 steam engine',
+    jwt_secret = env_or("SIPI_JWT_SECRET", 'UP 4888, nice 4-8-4 steam engine'),
     --            123456789012345678901234567890123456789012
 
     --
@@ -208,20 +224,24 @@ sipi = {
     --
     -- loglevel, one of "EMERGENCY", "ALERT", "CRITICAL", "ERROR", "WARNING", "NOTICE", "INFORMATIONAL", "DEBUG"
     --
-    loglevel = "DEBUG"
-    --loglevel = "ERROR"
+    -- Production default is WARNING to avoid logging internal filesystem paths
+    -- and per-request data on every image fetch. Override with SIPI_LOGLEVEL
+    -- (e.g. "DEBUG") for local debugging.
+    loglevel = env_or("SIPI_LOGLEVEL", "WARNING")
 }
 
 admin = {
     --
-    -- username of admin user
+    -- username of admin user (override via SIPI_ADMIN_USER in production)
     --
-    user = 'admin',
+    user = env_or("SIPI_ADMIN_USER", 'admin'),
 
     --
-    -- Administration password
+    -- Administration password. Inject via SIPI_ADMIN_PASSWORD in production; the
+    -- 'Sipi-Admin' fallback is the publicly-known stock demo password. Admin/API
+    -- routes are also denied at the nginx proxy as defense-in-depth.
     --
-    password = 'Sipi-Admin'
+    password = env_or("SIPI_ADMIN_PASSWORD", 'Sipi-Admin')
 }
 
 fileserver = {
@@ -241,6 +261,14 @@ fileserver = {
 -- http://<server-DNS>/<route>
 -- executes the given script defined below
 --
+-- Only the cache-management routes are kept. The stock SIPI demo routes that
+-- are dangerous in production — GET /api/exit (shuts SIPI down), POST /api/upload
+-- (arbitrary write), GET /api/token (mints JWTs), the /luaexe/* and /test/*
+-- Lua-execution demos, and /sqlite — have been removed. They are unused by the
+-- IIIF read path (image delivery is handled natively, not via this table) and
+-- are additionally denied at the nginx proxy. The /api/cache routes remain for
+-- the operator cache-purge workflow and are only reachable on the internal
+-- network (nginx denies /sipi/api/*).
 routes = {
     {
         method = 'DELETE',
@@ -251,50 +279,5 @@ routes = {
         method = 'GET',
         route = '/api/cache',
         script = 'cache.lua'
-    },
-    {
-        method = 'GET',
-        route = '/api/exit',
-        script = 'exit.lua'
-    },
-    {
-        method = 'GET',
-        route = '/luaexe/test1',
-        script = 'test1.lua'
-    },
-    {
-        method = 'POST',
-        route = '/luaexe/test1',
-        script = 'test1.lua'
-    },
-    {
-        method = 'GET',
-        route = '/luaexe/test2',
-        script = 'test2.lua'
-    },
-    {
-        method = 'POST',
-        route = '/api/upload',
-        script = 'upload.lua'
-    },
-    {
-        method = 'GET',
-        route = '/sqlite',
-        script = 'test_sqlite.lua'
-    },
-    {
-        method = 'GET',
-        route = '/api/token',
-        script = 'token.lua'
-    },
-    {
-        method = 'GET',
-        route = '/test/luafunctions',
-        script = 'test_functions.lua'
-    },
-    {
-        method = 'GET',
-        route = '/test/orientation',
-        script = 'orientation.lua'
     }
 }
