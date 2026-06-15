@@ -1,3 +1,10 @@
 env_file
 *.log*
 backups/postgres-upgrade/
+
+# Runtime TLS material (certbot-managed); keep the placeholder only
+certs/*
+!certs/.keep
+
+# Uploaded media / runtime storage
+storage/
