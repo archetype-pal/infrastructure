@@ -55,8 +55,52 @@ logs:
 
 # --- Application -------------------------------------------------------------
 
+# Resync every postgres sequence in the public schema to MAX(id) of its owning
+# column on the database configured for the Django API. Idempotent. Fixes
+# UniqueViolation after explicit-id imports/restores when a sequence drifts
+# below MAX(id). Handles both serial and identity sequences.
+sync-sequences:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker compose run --rm api python - <<'PY'
+    import os
+
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+
+    import django
+    from django.db import connection
+
+    django.setup()
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            DO $$
+            DECLARE r record; mv bigint; has_rows boolean;
+            BEGIN
+              FOR r IN
+                SELECT n.nspname AS schema_name, c.relname AS seq, t.relname AS tbl, a.attname AS col
+                FROM pg_class c
+                JOIN pg_depend d ON d.objid = c.oid AND d.deptype IN ('a', 'i')
+                JOIN pg_class t ON d.refobjid = t.oid
+                JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = d.refobjsubid
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relkind = 'S' AND n.nspname = 'public'
+              LOOP
+                EXECUTE format(
+                  'SELECT COALESCE(MAX(%I), 1), MAX(%I) IS NOT NULL FROM %I.%I',
+                  r.col, r.col, r.schema_name, r.tbl
+                ) INTO mv, has_rows;
+                PERFORM setval(format('%I.%I', r.schema_name, r.seq)::regclass, mv, has_rows);
+              END LOOP;
+            END $$;
+            """
+        )
+    print(f"Synchronized public id sequences for database {connection.settings_dict['NAME']}.")
+    PY
+
 # Apply Django database migrations
-migrate:
+migrate: sync-sequences
     docker compose run --rm api python manage.py migrate
 
 # Open a Django shell_plus in the api container
