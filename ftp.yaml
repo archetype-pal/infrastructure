@@ -1,0 +1,7 @@
+ ftp:
+   image: fauria/vsftpd
+   restart: always
+   env_file: env_file
+
+   volumes:  # make sure to update archetype_user below to match the user in the env_file
+     - ./storage/media:/home/vsftpd/archetype_user

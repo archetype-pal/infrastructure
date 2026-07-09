@@ -2,7 +2,7 @@ name: archetype
 services:
   meilisearch:
     image: getmeili/meilisearch:v1.45.2
-    restart: unless-stopped
+    restart: ${RESTART}
     environment:
       # Meilisearch is no longer published on the host (see the missing `ports:`
       # below), so it's only reachable over the internal compose network. To
@@ -10,13 +10,12 @@ services:
       # (>= 16 bytes) in env_file and give the Django client the same key. The
       # default stays `development` so an existing env_file (without these vars)
       # keeps working on deploy rather than refusing to start without a key.
-      - MEILI_ENV=${MEILI_ENV:-development}
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-}
+      - MEILI_ENV=${MEILI_ENV}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
       # refuse to start. No-op when versions already match. Safe — no embedders.
       - MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE=true
-    env_file: env_file
     # No host `ports:` — Meilisearch is reachable only over the internal compose
     # network (the api/celery containers use http://meilisearch:7700). Exposing
     # it on the host would let anyone with network access read/write/delete every
@@ -36,24 +35,25 @@ services:
     # version mismatch that would force a REINDEX. The postgres image isn't
     # CVE-scanned by CD, so a newer base buys nothing here.
     image: ${POSTGRES_IMAGE:-postgres:18.4-bookworm}
-    restart: unless-stopped
+    restart: ${RESTART}
     volumes:
       # PostgreSQL 18 Docker images use versioned PGDATA under /var/lib/postgresql.
       # Keep the volume mounted at the parent so future major upgrades can use
       # the official versioned layout.
       - postgres18:/var/lib/postgresql
     environment:
-      - POSTGRES_HOST=localhost
-      - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-local}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
-      - PGDATA=/var/lib/postgresql/18/docker
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - PGDATA=${PGDATA}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 10
+
   api:
     # Pin to an immutable release tag (override BACKEND_IMAGE in env to roll
     # forward/back). Mutable :latest makes `docker compose pull` silently change
@@ -61,8 +61,8 @@ services:
     image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
     restart: unless-stopped
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings
-      MEILISEARCH_URL: http://meilisearch:7700
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - MEILISEARCH_URL=${MEILISEARCH_URL}
     env_file: env_file
     volumes:
       - ./storage:/app/storage
@@ -88,15 +88,21 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
   frontend:
     # Run the baked image, pinned via env (override FRONTEND_IMAGE to roll
     # forward/back). The previous prod stack shipped a mutable `:dev` tag AND
     # bind-mounted `../frontend:/app` over the image, coupling the running
     # container to the host's frontend checkout (and its node_modules). The
     # source bind-mount belongs in a dev override file, not here.
-    image: ${FRONTEND_IMAGE:-ghcr.io/archetype-pal/frontend:latest}
-    restart: unless-stopped
-    env_file: env_file
+    image: ${FRONTEND_IMAGE}
+    restart: ${RESTART}
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_IIIF_UPSTREAM=${NEXT_PUBLIC_IIIF_UPSTREAM}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - DOCKER_IMAGE_HASH=${DOCKER_IMAGE_HASH}
     depends_on:
       api:
         condition: service_healthy
@@ -106,14 +112,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
   image_server:
     image: daschswiss/sipi:v5.0.1
-    restart: unless-stopped
+    restart: ${RESTART}
     user: "14:50"
     # SIPI's Lua config reads these via os.getenv(): override the stock demo
     # jwt_secret / admin credentials and the production loglevel. Leaving them
     # unset falls back to the vendored demo values (still denied at the nginx
-    # proxy). See env_file.example.
+    # proxy). See .env.prod.sample.
     environment:
       - SIPI_JWT_SECRET=${SIPI_JWT_SECRET:-}
       - SIPI_ADMIN_USER=${SIPI_ADMIN_USER:-}
@@ -122,8 +129,8 @@ services:
     # No host `ports:` — SIPI is reached only via nginx (`location /sipi`) and the
     # internal compose network. Publishing 1024 on the host bypasses the nginx
     # route-denial that blocks SIPI's control routes (/api/exit, /api/upload, ...).
-    expose:
-      - "1024"
+#    expose: TODO remove
+#      - "1024"
     volumes:
       - ./storage/media:/sipi/images
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
@@ -136,53 +143,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 20s
-  nginx:
-    image: nginx:1.30-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    env_file: env_file
-    volumes:
-      - ./nginx.conf:/etc/nginx/templates/default.conf.template:ro
-      - ./certs:/etc/nginx/certs:ro
-      - ./html:/var/www/certbot:ro
-      - ./nginx-entrypoint.sh:/docker-entrypoint.d/nginx-entrypoint.sh:ro
-    entrypoint: ["/bin/sh", "/docker-entrypoint.d/nginx-entrypoint.sh"]
-    depends_on:
-      api:
-        condition: service_healthy
-    healthcheck:
-      # Confirm nginx answers on the HTTP listener. The `/` location returns a
-      # 301 → HTTPS, so we grep the response headers for an "HTTP/" status line:
-      # any reply (incl. the 3xx) means nginx is serving. busybox wget on alpine
-      # exits non-zero on a 3xx, so we ignore its exit code and check the output.
-      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://localhost/ 2>&1 | grep -q 'HTTP/'"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-  certbot:
-    image: certbot/certbot:v5.6.0
-    volumes:
-      - ./certs:/etc/letsencrypt
-      - ./html:/var/www/certbot
-      - ./logs:/var/log/letsencrypt
-    depends_on:
-      - nginx
-  # ftp:
-  #   image: fauria/vsftpd
-  #   restart: always
-  #   env_file: env_file
-  #   ports:
-  #     - "21:21"
-  #     - "21100-21110:21100-21110"
-  #   volumes:  # make sure to update archetype_user below to match the user in the env_file 
-  #     - ./storage/media:/home/vsftpd/archetype_user
 
   redis:
     image: redis:8-alpine
-    restart: unless-stopped
+    restart: ${RESTART}
     # Require a password (set REDIS_PASSWORD in env_file). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
@@ -197,7 +161,7 @@ services:
 
   celery:
     image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
-    restart: unless-stopped
+    restart: ${RESTART}
     command: celery -A config worker -l info
     depends_on:
       redis:
@@ -211,7 +175,7 @@ services:
       # Redis now requires a password; include it in the broker/result URLs.
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
-      - MEILISEARCH_URL=http://meilisearch:7700
+      - MEILISEARCH_URL=${MEILISEARCH_URL}
     # `inspect ping` is Celery's canonical liveness probe — it round-trips
     # through the broker and the worker's mingle queue, so a green check
     # means "worker is consuming tasks", not just "process exists". `-d`

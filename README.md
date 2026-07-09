@@ -12,7 +12,18 @@ Following the instructions require a little bit of a technical background.
 - `just`: Command runner used for the shortcuts below. Install from https://github.com/casey/just#installation (`brew install just`, `cargo install just`, or a prebuilt binary on Windows). You can also run the underlying `docker compose` commands directly if you'd rather not install it.
 
 
-## Steps
+## Steps to build frontend
+
+```bash
+cd frontend
+docker build -t digipal/archetype-frontend:latest .
+```
+
+
+## Steps to build backend
+
+
+## Steps to deploy 
 
 1. Get a copy of the needed files from github:
     ```bash 
@@ -22,8 +33,8 @@ Following the instructions require a little bit of a technical background.
     >>> cd infrastructure
     ```
 
-2. Adust the project configuration to suit your needs.  
-    Create a new file `env_file` and fill it with the required variables. A working example can be found [here](./env_file.example).
+2. Adjust the project configuration to suit your needs.  
+    Create a new file `.env` and fill it with the required variables. A working example can be found [here](.env.prod.sample) or [here](.env.dev.sample).
 
     Existing deployments with PostgreSQL 17 data need a one-time database upgrade before starting the normal PostgreSQL 18 stack. Follow [the PostgreSQL 18 upgrade runbook](./docs/postgresql-18-upgrade.md) first.
 
@@ -43,29 +54,6 @@ Following the instructions require a little bit of a technical background.
 
 > Run `just` (or `just --list`) at any time to see every available command.
 
-
-## Setup the TLS certificates on your server
-This is *optional* for those who want to deploy their website securely using `https` on a custom domain.
-
-assuming your domain is called: `archetype.myserver.com`,  
-start by adding an `A record` that points to your server before continuing.
-
-To generate TLS certificates, run the following commands:
-```bash
->>> just certbot
-```
-
-### Enable TLS on the server nginx 
-After running the above command, the `certs/` folder is populated with the
-files Let's Encrypt issued. `nginx.conf` already points at
-`certs/live/$DOMAIN/fullchain.pem` and `privkey.pem`, so once the certs exist
-you only need to reload nginx:
-```bash
->>> docker compose restart nginx
-```
-
-> Certificates expire after 90 days. Re-run `just certbot` (then restart nginx)
-> to renew, or wire it into a cron job on the host.
 
 ## troubleshooting
 Since this setup process is very delicate, it's important to know how to check the logs.  

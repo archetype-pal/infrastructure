@@ -4,7 +4,7 @@
 #   just --justfile infrastructure/justfile --working-directory infrastructure <recipe>
 #
 # `just` (no recipe) lists everything. Service environment comes from the
-# `env_file` in this directory (see env_file.example), which Compose reads via
+# `env_file` in this directory (see .env.prod.sample), which Compose reads via
 # each service's `env_file:` directive — so recipes don't need to load it.
 
 set export

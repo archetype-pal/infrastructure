@@ -1,0 +1,23 @@
+services:
+  meilisearch:
+    ports:
+      - "7700:7700"
+
+  postgres:
+    ports:
+      - "5432:5432"
+  api:
+    ports:
+      - "8000:80"
+
+  image_server:
+    ports:
+      - "1024:1024"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  frontend:
+    ports:
+      - "3000:3000"
