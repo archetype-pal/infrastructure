@@ -12,24 +12,49 @@ Following the instructions require a little bit of a technical background.
 - `just`: Command runner used for the shortcuts below. Install from https://github.com/casey/just#installation (`brew install just`, `cargo install just`, or a prebuilt binary on Windows). You can also run the underlying `docker compose` commands directly if you'd rather not install it.
 
 
-## Steps to build frontend
+## Build frontend
 
 ### For local
 
 ```bash
 cd frontend
-docker build -t digipal/archetype-frontend:latest   
+
+docker build   
   --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000   
   --build-arg NEXT_PUBLIC_IIIF_UPSTREAM=http://localhost:3000   
   --build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000   
   --build-arg CORS_ALLOWED_ORIGINS=http://localhost:3000   
   --build-arg DOCKER_IMAGE_HASH=local-dev     
-  -t geourjoa/archetype-frontend:local .   
-``` 
+  -t geourjoa/archetype-frontend:local-latest .
 
 
+` 
+### For Tetras Libre production
 
-## Steps to build backend
+docker build   
+  --build-arg NEXT_PUBLIC_API_URL=https://digipal-api.tetras-libre.fr  
+  --build-arg NEXT_PUBLIC_IIIF_UPSTREAM=https://digipal-iiif.tetras-libre.fr   
+  --build-arg NEXT_PUBLIC_SITE_URL=https://digipal.tetras-libre.fr   
+  --build-arg CORS_ALLOWED_ORIGINS=https://digipal.tetras-libre.fr   
+  --build-arg DOCKER_IMAGE_HASH=local-dev     
+  -t geourjoa/archetype-frontend:prod-latest .
+
+## Build Backend
+
+### For local
+
+```bash
+cd frontend
+
+docker build   
+  -t geourjoa/archetype-backend:local-latest .
+
+
+` 
+### For Tetras Libre production
+
+docker build   
+  -t geourjoa/archetype-backend:prod-latest .
 
 
 ## Steps to deploy 

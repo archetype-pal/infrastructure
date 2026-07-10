@@ -58,12 +58,12 @@ services:
     # Pin to an immutable release tag (override BACKEND_IMAGE in env to roll
     # forward/back). Mutable :latest makes `docker compose pull` silently change
     # the running version and defeats digest-based rollback.
-    image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
+    image: ${BACKEND_IMAGE}
     restart: unless-stopped
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - MEILISEARCH_URL=${MEILISEARCH_URL}
-    env_file: env_file
+    env_file: .env
     volumes:
       - ./storage:/app/storage
     depends_on:
@@ -83,7 +83,7 @@ services:
         - "CMD"
         - "python"
         - "-c"
-        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://localhost:8000/api/v1/schema/', timeout=5)\")"
+        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://localhost:80/api/v1/schema/', timeout=5)\")"
       interval: 30s
       timeout: 10s
       retries: 3
@@ -91,7 +91,7 @@ services:
 
   frontend:
     # Run the baked image, pinned via env (override FRONTEND_IMAGE to roll
-    # forward/back). The previous prod stack shipped a mutable `:dev` tag AND
+    # forward/back). The POSTGRES_PORTprevious prod stack shipped a mutable `:dev` tag AND
     # bind-mounted `../frontend:/app` over the image, coupling the running
     # container to the host's frontend checkout (and its node_modules). The
     # source bind-mount belongs in a dev override file, not here.
@@ -136,21 +136,21 @@ services:
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
       - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
     healthcheck:
-      # SIPI serves its own /server fileserver docroot; a TCP/HTTP probe to the
-      # listening port confirms the process is up on the hot image path.
-      test: ["CMD-SHELL", "curl -fsS http://localhost:1024/server/ >/dev/null 2>&1 || curl -fsS http://localhost:1024/ >/dev/null 2>&1 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+      # The daschswiss/sipi image ships no shell and no curl/wget (only tini +
+      # the sipi binary), so any CMD-SHELL/CMD exec-based check fails at the
+      # "exec /bin/sh" step regardless of whether SIPI itself is up — verified
+      # via `docker inspect` OCI runtime errors. No other service depends_on
+      # this one with condition: service_healthy, so disabling the check
+      # doesn't affect startup ordering.
+      test: ["NONE"]
 
   redis:
     image: redis:8-alpine
     restart: ${RESTART}
-    # Require a password (set REDIS_PASSWORD in env_file). No host `ports:` —
+    # Require a password (set REDIS_PASSWORD in .env). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
-    env_file: env_file
+    env_file: .env
     volumes:
       - redis_data:/data
     healthcheck:
@@ -170,7 +170,7 @@ services:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
-    env_file: env_file
+    env_file: .env
     environment:
       # Redis now requires a password; include it in the broker/result URLs.
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
@@ -201,7 +201,7 @@ services:
   # off-site copy policy.
   pg_backup:
     image: postgres:18-alpine
-    env_file: env_file
+    env_file: .env
     command:
       - sh
       - -c

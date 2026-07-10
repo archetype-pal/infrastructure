@@ -8,3 +8,5 @@ certs/*
 
 # Uploaded media / runtime storage
 storage/
+
+.env
