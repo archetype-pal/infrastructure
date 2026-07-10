@@ -14,10 +14,19 @@ Following the instructions require a little bit of a technical background.
 
 ## Steps to build frontend
 
+### For local
+
 ```bash
 cd frontend
-docker build -t digipal/archetype-frontend:latest .
-```
+docker build -t digipal/archetype-frontend:latest   
+  --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000   
+  --build-arg NEXT_PUBLIC_IIIF_UPSTREAM=http://localhost:3000   
+  --build-arg NEXT_PUBLIC_SITE_URL=http://localhost:3000   
+  --build-arg CORS_ALLOWED_ORIGINS=http://localhost:3000   
+  --build-arg DOCKER_IMAGE_HASH=local-dev     
+  -t geourjoa/archetype-frontend:local .   
+``` 
+
 
 
 ## Steps to build backend
