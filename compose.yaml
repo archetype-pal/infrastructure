@@ -110,6 +110,10 @@ services:
     image: daschswiss/sipi:v5.0.1
     restart: unless-stopped
     user: "14:50"
+    # SIPI has no internal memory cap and has been OOM-killed while rendering
+    # large images. With a container limit the kernel kills (and compose
+    # restarts) only SIPI, instead of host-wide OOM taking down other services.
+    mem_limit: 2g
     # SIPI's Lua config reads these via os.getenv(): override the stock demo
     # jwt_secret / admin credentials and the production loglevel. Leaving them
     # unset falls back to the vendored demo values (still denied at the nginx
@@ -212,6 +216,17 @@ services:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - MEILISEARCH_URL=http://meilisearch:7700
+      # The image-upload ingest task (apps.uploads) ends by requesting a real
+      # tile from SIPI to prove the converted JP2 is servable. IIIF_HOST in
+      # env_file is the BROWSER-facing address, which this container cannot
+      # reach — the worker must talk to SIPI over the internal compose network.
+      - UPLOADS_SIPI_BASE_URL=http://image_server:1024
+    volumes:
+      # The upload ingest pipeline runs on this worker: it reads chunk files
+      # from storage/uploads_tmp/, writes the served JP2 under storage/media/
+      # and archives the original under storage/originals/. Same mount as the
+      # api service — without it every upload fails at the conversion step.
+      - ./storage:/app/storage
     # `inspect ping` is Celery's canonical liveness probe — it round-trips
     # through the broker and the worker's mingle queue, so a green check
     # means "worker is consuming tasks", not just "process exists". `-d`

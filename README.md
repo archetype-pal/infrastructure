@@ -44,6 +44,21 @@ Following the instructions require a little bit of a technical background.
 > Run `just` (or `just --list`) at any time to see every available command.
 
 
+## Enable image uploads (backoffice)
+
+Superusers can upload manuscript images from the backoffice. The upload
+pipeline writes under `storage/` from the backend containers, which run as
+uid 999, so the target directories need a one-time setup:
+
+```bash
+>>> just setup-upload-storage
+```
+
+Uploaded originals are archived under `storage/originals/` — see
+[the backup runbook](./docs/backup-runbook.md) for why that directory must be
+part of your filesystem backups.
+
+
 ## Setup the TLS certificates on your server
 This is *optional* for those who want to deploy their website securely using `https` on a custom domain.
 

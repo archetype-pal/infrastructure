@@ -29,6 +29,11 @@ Not covered by this runbook (and **not** in the dump):
   disk and should be in your nightly filesystem backup story (rsync,
   restic, S3 sync, etc.). The dump knows the rows, but the bytes live
   outside Postgres.
+- Archived upload originals under `infrastructure/storage/originals/` —
+  the preservation master of every image uploaded through the backoffice.
+  These files are the ONLY copy of the original, so back them up with the
+  same filesystem story as `storage/media/`. (`storage/uploads_tmp/` is
+  transient chunk staging — no backup needed.)
 - The Meilisearch index — it's a derived store; rebuild from
   Postgres via `just sync-all-search-indexes` after a restore.
 - The Redis broker — task queue; transient by design.
