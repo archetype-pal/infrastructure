@@ -107,7 +107,12 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1"]
+      # Use 127.0.0.1, not localhost: the container resolves "localhost" to
+      # ::1 first, but Next.js (HOSTNAME=0.0.0.0 in the Dockerfile) only binds
+      # IPv4, so a localhost healthcheck fails with connection refused even
+      # though the app is up — which then makes Traefik treat the backend as
+      # down and stop routing to it.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -127,7 +132,7 @@ services:
       - SIPI_ADMIN_PASSWORD=${SIPI_ADMIN_PASSWORD:-}
       - SIPI_LOGLEVEL=${SIPI_LOGLEVEL:-}
     # No host `ports:` — SIPI is reached only via nginx (`location /sipi`) and the
-    # internal compose network. Publishing 1024 on the host bypasses the nginx
+    # internal compose network. Publishing 1024 on the host bypasses the +
     # route-denial that blocks SIPI's control routes (/api/exit, /api/upload, ...).
 #    expose: TODO remove
 #      - "1024"
