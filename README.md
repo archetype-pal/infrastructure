@@ -17,7 +17,7 @@ Following the instructions require a little bit of a technical background.
 ### For local
 
 ```bash
-cd frontend
+cd frontend-folder
 
 docker build   
   --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000   
@@ -31,20 +31,24 @@ docker build
 ` 
 ### For Tetras Libre production
 
-docker build   
-  --build-arg NEXT_PUBLIC_API_URL=https://digipal-api.tetras-libre.fr  
-  --build-arg NEXT_PUBLIC_IIIF_UPSTREAM=https://digipal-iiif.tetras-libre.fr   
-  --build-arg NEXT_PUBLIC_SITE_URL=https://digipal.tetras-libre.fr   
-  --build-arg CORS_ALLOWED_ORIGINS=https://digipal.tetras-libre.fr   
-  --build-arg DOCKER_IMAGE_HASH=local-dev     
+cd frontend-folder
+
+docker build   \
+  --build-arg NEXT_PUBLIC_API_URL=https://digipal-api.tetras-libre.fr  \
+  --build-arg NEXT_PUBLIC_IIIF_UPSTREAM=https://digipal-iiif.tetras-libre.fr   \
+  --build-arg NEXT_PUBLIC_SITE_URL=https://digipal.tetras-libre.fr   \
+  --build-arg CORS_ALLOWED_ORIGINS=https://digipal.tetras-libre.fr   \
+  --build-arg DOCKER_IMAGE_HASH=local-dev     \
   -t geourjoa/archetype-frontend:prod-latest .
+  
+docker push geourjoa/archetype-frontend:prod-latest
 
 ## Build Backend
 
 ### For local
 
 ```bash
-cd frontend
+cd backend-folder
 
 docker build   
   -t geourjoa/archetype-backend:local-latest .
@@ -53,8 +57,11 @@ docker build
 ` 
 ### For Tetras Libre production
 
-docker build   
+cd backend-folder
+docker build   \
   -t geourjoa/archetype-backend:prod-latest .
+  
+docker push geourjoa/archetype-backend:prod-latest
 
 
 ## Steps to deploy 
