@@ -1,7 +1,7 @@
 name: archetype
 services:
   meilisearch:
-    image: getmeili/meilisearch:v1.45.2
+    image: getmeili/meilisearch:v1.50.0
     restart: unless-stopped
     environment:
       # Meilisearch is no longer published on the host (see the missing `ports:`
@@ -181,7 +181,9 @@ services:
   #     - ./storage/media:/home/vsftpd/archetype_user
 
   redis:
-    image: redis:8-alpine
+    # Pinned exactly rather than to the floating `8-alpine` tag, which silently
+    # walked 8.0 -> 8.8 in place and made deploys non-reproducible.
+    image: redis:8.8.1-alpine
     restart: unless-stopped
     # Require a password (set REDIS_PASSWORD in env_file). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
