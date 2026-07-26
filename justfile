@@ -140,6 +140,30 @@ celery_status:
 backup:
     docker compose run --rm pg_backup sh -c 'pg_dump "$DATABASE_URL" | gzip > /backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz'
 
+# Full restore from a gzipped dump (see docs/backup-runbook.md "Restore — full").
+# DESTRUCTIVE: drops and recreates POSTGRES_DB. Stops api/celery during the
+# restore and brings them back up after. Usage: just restore backups/local-20260518T040000Z.sql.gz
+restore FILE:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    test -f "{{FILE}}" || { echo "No such dump file: {{FILE}}" >&2; exit 1; }
+    # POSTGRES_USER/POSTGRES_DB only exist inside the postgres container's own
+    # environment (set via compose from env_file) — not in this host shell —
+    # so read them back out rather than assuming they're exported here.
+    db="$(docker compose exec -T postgres bash -c 'echo -n "$POSTGRES_DB"')"
+    read -rp "This will DROP and recreate database '$db'. Continue? [y/N] " confirm
+    [[ "$confirm" == "y" || "$confirm" == "Y" ]] || { echo "Aborted."; exit 1; }
+    docker compose stop api celery pg_backup
+    # DROP DATABASE fails if anything still holds a connection (a lingering
+    # `just shell`/`just bash` session, an in-flight pg_backup dump that
+    # started before the stop above, etc.) — terminate stragglers first.
+    docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '"'"'$POSTGRES_DB'"'"' AND pid <> pg_backend_pid();"'
+    docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE \"$POSTGRES_DB\";"'
+    docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\";"'
+    gunzip -c "{{FILE}}" | docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+    docker compose up -d api celery
+    echo "Restore complete. Run 'just reindex' to rebuild search indexes."
+
 # Print the running PostgreSQL server version
 postgres-version:
     docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SHOW server_version;"'
