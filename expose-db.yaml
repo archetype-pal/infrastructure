@@ -1,0 +1,7 @@
+services:
+  postgres:
+    # Expose the database on the host for local development. This is not needed
+    # for production, where the api container can reach it over the internal
+    # compose network.
+    ports:
+      - "127.0.0.1:${POSTGRES_EXPOSE_PORT}:5432"
