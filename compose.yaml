@@ -1,8 +1,8 @@
 name: archetype
 services:
   meilisearch:
-    image: getmeili/meilisearch:v1.45.2
-    restart: ${RESTART}
+    image: getmeili/meilisearch:v1.50.0
+    restart: unless-stopped
     environment:
       # Meilisearch is no longer published on the host (see the missing `ports:`
       # below), so it's only reachable over the internal compose network. To
@@ -53,7 +53,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-
   api:
     # Pin to an immutable release tag (override BACKEND_IMAGE in env to roll
     # forward/back). Mutable :latest makes `docker compose pull` silently change
@@ -132,10 +131,8 @@ services:
       - SIPI_ADMIN_PASSWORD=${SIPI_ADMIN_PASSWORD:-}
       - SIPI_LOGLEVEL=${SIPI_LOGLEVEL:-}
     # No host `ports:` — SIPI is reached only via nginx (`location /sipi`) and the
-    # internal compose network. Publishing 1024 on the host bypasses the +
+    # internal compose network. Publishing 1024 on the host bypasses the nginx
     # route-denial that blocks SIPI's control routes (/api/exit, /api/upload, ...).
-#    expose: TODO remove
-#      - "1024"
     volumes:
       - ./storage/media:/sipi/images
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
@@ -150,7 +147,9 @@ services:
       test: ["NONE"]
 
   redis:
-    image: redis:8-alpine
+    # Pinned exactly rather than to the floating `8-alpine` tag, which silently
+    # walked 8.0 -> 8.8 in place and made deploys non-reproducible.
+    image: redis:8.8.1-alpine
     restart: ${RESTART}
     # Require a password (set REDIS_PASSWORD in .env). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
