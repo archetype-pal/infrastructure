@@ -43,6 +43,35 @@ Following the instructions require a little bit of a technical background.
 
 > Run `just` (or `just --list`) at any time to see every available command.
 
+## Upgrading an existing deployment
+
+The steps above describe a first deployment. To move a running server to a new
+release:
+
+```bash
+>>> just pull      # fetch the new images
+>>> just up-bg
+>>> just migrate   # always — a release may add tables or columns
+```
+
+That is enough for most releases. **A release that adds or changes search
+facets, filters or sort fields additionally needs:**
+
+```bash
+>>> just setup-search-indexes
+```
+
+Meilisearch applies index *settings* only when they are pushed, so new facets
+stay invisible until this runs — the site keeps working, it simply returns no
+values for them. Run `just reindex` instead if the shape of the indexed
+documents changed too (it does `setup-search-indexes` then reloads every
+document).
+
+Releases needing that extra step say so in their notes. The July 2026 TEI
+manuscript-descriptions release is one: it adds `material`, `script`,
+`deco_type` and `origin_place` facets to the `item-parts` index, and a
+`manuscripts` migration for the new description tables.
+
 
 ## Setup the TLS certificates on your server
 This is *optional* for those who want to deploy their website securely using `https` on a custom domain.
