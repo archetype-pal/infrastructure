@@ -160,7 +160,13 @@ restore FILE:
     docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '"'"'$POSTGRES_DB'"'"' AND pid <> pg_backend_pid();"'
     docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE \"$POSTGRES_DB\";"'
     docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE \"$POSTGRES_DB\" OWNER \"$POSTGRES_USER\";"'
-    gunzip -c "{{FILE}}" | docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+    # Accept both the sidecar's gzipped dumps and a plain .sql dump (e.g. one
+    # produced by `pg_dump` directly, or already decompressed by hand).
+    if [[ "{{FILE}}" == *.gz ]]; then
+        gunzip -c "{{FILE}}"
+    else
+        cat "{{FILE}}"
+    fi | docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
     docker compose up -d api celery
     echo "Restore complete. Run 'just reindex' to rebuild search indexes."
 
