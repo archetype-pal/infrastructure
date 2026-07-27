@@ -1,4 +1,6 @@
 env_file
+# Compose interpolation vars (image pins, published ports) — host-specific.
+.env
 *.log*
 backups/postgres-upgrade/
 

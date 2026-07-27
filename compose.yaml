@@ -83,7 +83,7 @@ services:
         - "CMD"
         - "python"
         - "-c"
-        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://localhost:8000/api/v1/schema/', timeout=5)\")"
+        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://localhost:80/api/v1/schema/', timeout=5)\")"
       interval: 30s
       timeout: 10s
       retries: 3
