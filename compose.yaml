@@ -66,6 +66,10 @@ services:
     env_file: env_file
     volumes:
       - ./storage:/app/storage
+      # Media is bind-mounted separately (over the ./storage subpath above) so a
+      # deployment can keep the 30GB image corpus outside the infrastructure
+      # checkout. Defaults to the in-repo path, so existing deploys are unchanged.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,7 +134,7 @@ services:
       # `id`, and with prefix_as_path that makes `sipi` a real directory segment
       # under imgroot. Stripping the prefix instead made SIPI advertise
       # unfetchable `https://localhost/...` ids and broke every IIIF viewer.
-      - ./storage/media:/sipi/images/sipi
+      - ${MEDIA_HOST_PATH:-./storage/media}:/sipi/images/sipi
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
       - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
     healthcheck:
