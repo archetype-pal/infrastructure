@@ -55,6 +55,26 @@ logs:
 
 # --- Application -------------------------------------------------------------
 
+# Collect Django/DRF/admin static assets into STATIC_ROOT. REQUIRED after every
+# deploy or image bump — it is not baked into the image, because STATIC_ROOT
+# lives under ./storage, which the runtime bind-mount would mask.
+#
+# Skipping it is not cosmetic: with DEBUG=False the app uses whitenoise's
+# CompressedManifestStaticFilesStorage, so any template calling {% static %}
+# raises "Missing staticfiles manifest entry" — which means every DRF endpoint
+# opened in a BROWSER (Accept: text/html -> the browsable API) returns a hard
+# 500, while the same URL fetched with curl returns 200 JSON. Easy to miss.
+#
+# The api container runs as uid 999, so STATIC_ROOT must be writable by it; the
+# recipe creates it 0777 first because the host ./storage is usually owned by a
+# different uid.
+#
+# Collect static assets into STATIC_ROOT (run after every deploy/image bump)
+collectstatic:
+    mkdir -p storage/staticfiles
+    chmod 777 storage/staticfiles
+    docker compose exec -T api python manage.py collectstatic --noinput
+
 # Resync every postgres sequence in the public schema to MAX(id) of its owning
 # column on the database configured for the Django API. Idempotent. Fixes
 # UniqueViolation after explicit-id imports/restores when a sequence drifts
