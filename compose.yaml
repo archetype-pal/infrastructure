@@ -125,7 +125,12 @@ services:
     expose:
       - "1024"
     volumes:
-      - ./storage/media:/sipi/images
+      # Mounted one level deeper than imgroot (./images) on purpose: nginx passes
+      # the /sipi prefix through untouched so SIPI can echo it back in info.json's
+      # `id`, and with prefix_as_path that makes `sipi` a real directory segment
+      # under imgroot. Stripping the prefix instead made SIPI advertise
+      # unfetchable `https://localhost/...` ids and broke every IIIF viewer.
+      - ./storage/media:/sipi/images/sipi
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
       - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
     healthcheck:
