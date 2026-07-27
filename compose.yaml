@@ -83,7 +83,7 @@ services:
         - "CMD"
         - "python"
         - "-c"
-        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://localhost:80/api/v1/schema/', timeout=5)\")"
+        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://127.0.0.1:80/api/v1/schema/', timeout=5)\")"
       interval: 30s
       timeout: 10s
       retries: 3
@@ -101,7 +101,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -129,9 +129,16 @@ services:
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
       - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
     healthcheck:
-      # SIPI serves its own /server fileserver docroot; a TCP/HTTP probe to the
-      # listening port confirms the process is up on the hot image path.
-      test: ["CMD-SHELL", "curl -fsS http://localhost:1024/server/ >/dev/null 2>&1 || curl -fsS http://localhost:1024/ >/dev/null 2>&1 || exit 1"]
+      # CMD (exec) form, not CMD-SHELL: this image ships no /bin/sh, so every
+      # shell-form probe died with "exec: /bin/sh: no such file or directory"
+      # and the container sat permanently unhealthy. curl is present.
+      #
+      # No -f: SIPI answers / with 400 and /server/ with 404 (both are "the
+      # process is serving"), and -f would turn those into failures. Bare curl
+      # exits 0 on any HTTP response and non-zero only when the connection is
+      # refused — exactly the liveness signal we want. 127.0.0.1, not localhost:
+      # localhost resolves to ::1 first here and SIPI binds IPv4.
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://127.0.0.1:1024/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -157,7 +164,7 @@ services:
       # 301 → HTTPS, so we grep the response headers for an "HTTP/" status line:
       # any reply (incl. the 3xx) means nginx is serving. busybox wget on alpine
       # exits non-zero on a 3xx, so we ignore its exit code and check the output.
-      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://localhost/ 2>&1 | grep -q 'HTTP/'"]
+      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1/ 2>&1 | grep -q 'HTTP/'"]
       interval: 30s
       timeout: 10s
       retries: 3
