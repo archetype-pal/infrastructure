@@ -10,8 +10,8 @@ services:
       # (>= 16 bytes) in env_file and give the Django client the same key. The
       # default stays `development` so an existing env_file (without these vars)
       # keeps working on deploy rather than refusing to start without a key.
-      - MEILI_ENV=${MEILI_ENV}
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+      - MEILI_ENV=${MEILI_ENV:-development}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-}
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
       # refuse to start. No-op when versions already match. Safe — no embedders.
@@ -66,6 +66,10 @@ services:
     env_file: .env
     volumes:
       - ./storage:/app/storage
+      # Media is bind-mounted separately (over the ./storage subpath above) so a
+      # deployment can keep the 30GB image corpus outside the infrastructure
+      # checkout. Defaults to the in-repo path, so existing deploys are unchanged.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -88,10 +92,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
   frontend:
     # Run the baked image, pinned via env (override FRONTEND_IMAGE to roll
-    # forward/back). The POSTGRES_PORTprevious prod stack shipped a mutable `:dev` tag AND
+    # forward/back). The previous prod stack shipped a mutable `:dev` tag AND
     # bind-mounted `../frontend:/app` over the image, coupling the running
     # container to the host's frontend checkout (and its node_modules). The
     # source bind-mount belongs in a dev override file, not here.
@@ -117,7 +120,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-
   image_server:
     image: daschswiss/sipi:v5.0.1
     restart: ${RESTART}
@@ -135,17 +137,29 @@ services:
     # internal compose network. Publishing 1024 on the host bypasses the nginx
     # route-denial that blocks SIPI's control routes (/api/exit, /api/upload, ...).
     volumes:
-      - ./storage/media:/sipi/images
+      # Mounted one level deeper than imgroot (./images) on purpose: nginx passes
+      # the /sipi prefix through untouched so SIPI can echo it back in info.json's
+      # `id`, and with prefix_as_path that makes `sipi` a real directory segment
+      # under imgroot. Stripping the prefix instead made SIPI advertise
+      # unfetchable `https://localhost/...` ids and broke every IIIF viewer.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/sipi/images/sipi
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
       - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
     healthcheck:
-      # The daschswiss/sipi image ships no shell and no curl/wget (only tini +
-      # the sipi binary), so any CMD-SHELL/CMD exec-based check fails at the
-      # "exec /bin/sh" step regardless of whether SIPI itself is up — verified
-      # via `docker inspect` OCI runtime errors. No other service depends_on
-      # this one with condition: service_healthy, so disabling the check
-      # doesn't affect startup ordering.
-      test: ["NONE"]
+      # CMD (exec) form, not CMD-SHELL: this image ships no /bin/sh, so every
+      # shell-form probe died with "exec: /bin/sh: no such file or directory"
+      # and the container sat permanently unhealthy. curl is present.
+      #
+      # No -f: SIPI answers / with 400 and /server/ with 404 (both are "the
+      # process is serving"), and -f would turn those into failures. Bare curl
+      # exits 0 on any HTTP response and non-zero only when the connection is
+      # refused — exactly the liveness signal we want. 127.0.0.1, not localhost:
+      # localhost resolves to ::1 first here and SIPI binds IPv4.
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://127.0.0.1:1024/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   redis:
     # Pinned exactly rather than to the floating `8-alpine` tag, which silently

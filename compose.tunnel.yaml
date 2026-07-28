@@ -1,0 +1,22 @@
+# Cloudflare Tunnel overlay for the production stack.
+#
+#   docker compose -f compose.yaml -f compose.tunnel.yaml up -d
+#
+# Differences from the direct-exposure stack:
+#   * nginx serves plain HTTP only (see nginx.tunnel.conf) — Cloudflare
+#     terminates TLS at the edge, so no certs and no 80->443 redirect.
+#   * The HTTP listener is published on ${NGINX_HTTP_PORT:-8090} instead of 80.
+#     cloudflared then routes archetype.elghareeb.space -> http://localhost:8090
+#     via an explicit ingress rule placed ABOVE the `*.elghareeb.space` wildcard.
+#     Binding host port 80 here would swallow that wildcard and hand every other
+#     subdomain (Coolify's Traefik vhosts) archetype's nginx instead.
+#   * certbot is not used; it stays defined in compose.yaml but is never run.
+
+services:
+  nginx:
+    ports: !override
+      - "${NGINX_HTTP_PORT:-8090}:80"
+    volumes:
+      - ./nginx.tunnel.conf:/etc/nginx/templates/default.conf.template:ro
+      - ./html:/var/www/certbot:ro
+      - ./nginx-entrypoint.sh:/docker-entrypoint.d/nginx-entrypoint.sh:ro
