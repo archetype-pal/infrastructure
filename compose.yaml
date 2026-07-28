@@ -62,6 +62,7 @@ services:
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings
       - MEILISEARCH_URL=${MEILISEARCH_URL}
+      - MEILISEARCH_API_KEY=${MEILI_MASTER_KEY}
     env_file: .env
     volumes:
       - ./storage:/app/storage
@@ -180,6 +181,7 @@ services:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - MEILISEARCH_URL=${MEILISEARCH_URL}
+      - MEILISEARCH_API_KEY=${MEILI_MASTER_KEY}
     # `inspect ping` is Celery's canonical liveness probe — it round-trips
     # through the broker and the worker's mingle queue, so a green check
     # means "worker is consuming tasks", not just "process exists". `-d`
