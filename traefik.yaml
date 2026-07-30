@@ -31,7 +31,18 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.${NAME_ARCHETYPE_IIIF}.rule=Host(`${HOST_ARCHETYPE_IIIF}`)"
+      # SIPI serves image delivery under /sipi/... only (see IIIF_HOST in the
+      # env samples) but also ships dangerous demo routes baked into the image
+      # (a /server fileserver docroot, /api/*, /luaexe/*, /test/*, /sqlite —
+      # Lua-execution demos and cache/control endpoints). nginx used to gate
+      # these with a 404 + `limit_except GET HEAD`; replicate both restrictions
+      # directly in the router rule now that nginx is gone, so anything that
+      # doesn't match (wrong path, wrong method) gets no router at all instead
+      # of reaching SIPI.
+      - >-
+        traefik.http.routers.${NAME_ARCHETYPE_IIIF}.rule=Host(`${HOST_ARCHETYPE_IIIF}`) &&
+        PathPrefix(`/sipi`) && Method(`GET`,`HEAD`,`OPTIONS`) &&
+        !PathRegexp(`^/sipi/(api|luaexe|server|test|sqlite)(/|$)`)
       - "traefik.http.routers.${NAME_ARCHETYPE_IIIF}.tls.certresolver=myresolver"
       - "traefik.http.routers.${NAME_ARCHETYPE_IIIF}.entrypoints=web,websecure"
       - "traefik.http.routers.${NAME_ARCHETYPE_IIIF}.middlewares=hardening@docker"
