@@ -2,8 +2,7 @@ env_file
 # Compose interpolation vars (image pins, published ports) — host-specific.
 .env
 *.log*
-# pg_backup bind-mounts ./backups and drops nightly dumps of the live database
-# (full corpus + auth_user rows) straight into the working tree.
+# pg_backup writes nightly dumps of the live database here.
 backups/
 
 # Runtime TLS material (certbot-managed); keep the placeholder only

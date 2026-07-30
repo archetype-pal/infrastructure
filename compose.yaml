@@ -4,14 +4,10 @@ services:
     image: getmeili/meilisearch:v1.50.0
     restart: unless-stopped
     environment:
-      # Meilisearch is no longer published on the host (see the missing `ports:`
-      # below), so it's only reachable over the internal compose network. To
-      # additionally require auth, set MEILI_ENV=production + a MEILI_MASTER_KEY
-      # (>= 16 bytes) in env_file and give the Django client the same key. The
-      # default stays `development` so an existing env_file (without these vars)
-      # keeps working on deploy rather than refusing to start without a key.
+      # MEILI_MASTER_KEY and MEILISEARCH_API_KEY live in env_file and must match.
+      # Don't list the master key here — an `environment:` entry overrides
+      # env_file and interpolates to empty, which 500s every search.
       - MEILI_ENV=${MEILI_ENV:-development}
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-}
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
       # refuse to start. No-op when versions already match. Safe — no embedders.
