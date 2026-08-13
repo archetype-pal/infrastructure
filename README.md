@@ -35,7 +35,7 @@ cd frontend-folder
 
 docker build   \
   --build-arg NEXT_PUBLIC_API_URL=https://digipal-api.tetras-libre.fr  \
-  --build-arg NEXT_PUBLIC_IIIF_UPSTREAM=https://digipal-iiif.tetras-libre.fr   \
+  --build-arg NEXT_PUBLIC_IIIF_UPSTREAM=https://digipal-iiif.tetras-libre.fr/   \
   --build-arg NEXT_PUBLIC_SITE_URL=https://digipal.tetras-libre.fr   \
   --build-arg CORS_ALLOWED_ORIGINS=https://digipal.tetras-libre.fr   \
   --build-arg DOCKER_IMAGE_HASH=local-dev     \
