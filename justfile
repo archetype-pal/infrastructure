@@ -82,7 +82,7 @@ collectstatic:
 sync-sequences:
     #!/usr/bin/env bash
     set -euo pipefail
-    docker compose run --rm api python - <<'PY'
+    docker compose run --rm -T api python - <<'PY'
     import os
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
@@ -121,7 +121,7 @@ sync-sequences:
 
 # Apply Django database migrations
 migrate: sync-sequences
-    docker compose run --rm api python manage.py migrate
+    docker compose run --rm -T api python manage.py migrate
 
 # Open a Django shell_plus in the api container
 shell:
@@ -135,15 +135,15 @@ bash:
 
 # Create indexes + settings only (no documents)
 setup-search-indexes:
-    docker compose run --rm api python manage.py setup_search_indexes
+    docker compose run --rm -T api python manage.py setup_search_indexes
 
 # Sync every index from the database
 sync-all-search-indexes:
-    docker compose run --rm api python manage.py sync_all_search_indexes
+    docker compose run --rm -T api python manage.py sync_all_search_indexes
 
 # Sync one index from the DB, e.g. `just sync-search-index item-parts`
 sync-search-index INDEX:
-    docker compose run --rm api python manage.py sync_search_index {{INDEX}}
+    docker compose run --rm -T api python manage.py sync_search_index {{INDEX}}
 
 # Rebuild all search indexes from the DB (schema + documents)
 reindex: setup-search-indexes sync-all-search-indexes
@@ -152,13 +152,13 @@ reindex: setup-search-indexes sync-all-search-indexes
 
 # Inspect active Celery workers
 celery_status:
-    docker compose run --rm api celery -A config inspect active
+    docker compose run --rm -T api celery -A config inspect active
 
 # --- Database backup / PostgreSQL --------------------------------------------
 
 # Take a one-off gzipped pg_dump into ./backups/ (see docs/backup-runbook.md)
 backup:
-    docker compose run --rm pg_backup sh -c 'pg_dump "$DATABASE_URL" | gzip > /backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz'
+    docker compose run --rm -T pg_backup sh -c 'pg_dump "$DATABASE_URL" | gzip > /backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz'
 
 # Full restore from a gzipped dump (see docs/backup-runbook.md "Restore — full").
 # DESTRUCTIVE: drops and recreates POSTGRES_DB. Stops api/celery during the
@@ -206,4 +206,4 @@ certbot:
     set -euo pipefail
     domain="$(grep -E '^[[:space:]]*DOMAIN=' env_file | tail -n1 | cut -d= -f2- | tr -d '"' | xargs)"
     test -n "$domain" || { echo "DOMAIN is not set in env_file" >&2; exit 1; }
-    docker compose run --rm certbot certonly --webroot --webroot-path=/var/www/certbot -d "$domain"
+    docker compose run --rm -T certbot certonly --webroot --webroot-path=/var/www/certbot -d "$domain"
