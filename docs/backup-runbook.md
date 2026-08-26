@@ -25,15 +25,16 @@ The `pg_backup` service in `infrastructure/compose.yaml`:
 
 Not covered by this runbook (and **not** in the dump):
 
-- Uploaded media under `infrastructure/storage/media/` — those are on
-  disk and should be in your nightly filesystem backup story (rsync,
-  restic, S3 sync, etc.). The dump knows the rows, but the bytes live
-  outside Postgres.
-- Archived upload originals under `infrastructure/storage/originals/` —
-  the preservation master of every image uploaded through the backoffice.
-  These files are the ONLY copy of the original, so back them up with the
-  same filesystem story as `storage/media/`. (`storage/uploads_tmp/` is
-  transient chunk staging — no backup needed.)
+- Uploaded media — whatever `MEDIA_HOST_PATH` points at, defaulting to
+  `infrastructure/storage/media/`. **Check that variable before writing your
+  backup job:** if it aliases an external corpus, uploads land there and the
+  in-checkout `storage/media/` is shadowed and empty, so backing up the
+  checkout would capture nothing. These bytes are on disk and belong in your
+  nightly filesystem backup story (rsync, restic, S3 sync, etc.); the dump
+  knows the rows, but not the files. For images uploaded through the
+  backoffice the served JP2 is the only copy, so this is the one thing
+  standing between a disk failure and losing them. (`storage/uploads_tmp/`
+  is transient chunk staging — no backup needed.)
 - The Meilisearch index — it's a derived store; rebuild from
   Postgres via `just sync-all-search-indexes` after a restore.
 - The Redis broker — task queue; transient by design.

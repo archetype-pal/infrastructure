@@ -237,10 +237,16 @@ services:
       - UPLOADS_SIPI_BASE_URL=http://image_server:1024
     volumes:
       # The upload ingest pipeline runs on this worker: it reads chunk files
-      # from storage/uploads_tmp/, writes the served JP2 under storage/media/
-      # and archives the original under storage/originals/. Same mount as the
-      # api service — without it every upload fails at the conversion step.
+      # from storage/uploads_tmp/ and writes the converted JP2 under
+      # storage/media/uploads/. Without this mount every upload fails at the
+      # conversion step.
       - ./storage:/app/storage
+      # Media must resolve to the SAME host path as api and image_server (both
+      # alias it via MEDIA_HOST_PATH). With only the mount above, a deployment
+      # that points MEDIA_HOST_PATH at an external corpus would have the worker
+      # write into the checkout while api and SIPI read from the corpus — the
+      # upload would succeed and then 404.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
     # `inspect ping` is Celery's canonical liveness probe — it round-trips
     # through the broker and the worker's mingle queue, so a green check
     # means "worker is consuming tasks", not just "process exists". `-d`

@@ -155,16 +155,16 @@ celery_status:
     docker compose run --rm api celery -A config inspect active
 
 # --- Image uploads (backoffice, apps.uploads) ---------------------------------
-# The upload pipeline writes to storage/uploads_tmp/ (chunk staging),
-# storage/media/uploads/ (served JP2s) and storage/originals/ (archived
-# originals) from the api/celery containers, which run as uid 999 (archetype).
-# Until those directories exist and are writable by that uid, every upload
-# request fails with a 503 "not writable by the service user" error.
+# The upload pipeline writes to storage/uploads_tmp/ (chunk staging) and
+# storage/media/uploads/ (the served JP2s) from the api/celery containers,
+# which run as uid 999 (archetype). Until those directories exist and are
+# writable by that uid, every upload request fails with a 503 "not writable
+# by the service user" error.
 # The chown runs inside the api image (as root) so no host sudo is needed.
 
 # One-time setup: create the upload storage dirs and chown them to uid 999
 setup-upload-storage:
-    docker compose run --rm --no-deps -u root api sh -c 'mkdir -p /app/storage/uploads_tmp /app/storage/originals /app/storage/media/uploads && chown -R 999:999 /app/storage/uploads_tmp /app/storage/originals /app/storage/media/uploads'
+    docker compose run --rm --no-deps -u root api sh -c 'mkdir -p /app/storage/uploads_tmp /app/storage/media/uploads && chown -R 999:999 /app/storage/uploads_tmp /app/storage/media/uploads'
 
 # --- Database backup / PostgreSQL --------------------------------------------
 

@@ -83,9 +83,10 @@ uid 999, so the target directories need a one-time setup:
 >>> just setup-upload-storage
 ```
 
-Uploaded originals are archived under `storage/originals/` — see
-[the backup runbook](./docs/backup-runbook.md) for why that directory must be
-part of your filesystem backups.
+The converted JP2 is the only copy of an uploaded image. Uploads land under
+`MEDIA_HOST_PATH` (default `storage/media/`) — see
+[the backup runbook](./docs/backup-runbook.md) for why that variable decides
+what your backup job has to cover.
 
 
 ## Setup the TLS certificates on your server
