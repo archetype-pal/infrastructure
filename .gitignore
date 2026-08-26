@@ -1,6 +1,9 @@
 env_file
+# Compose interpolation vars (image pins, published ports) — host-specific.
+.env
 *.log*
-backups/postgres-upgrade/
+# pg_backup writes nightly dumps of the live database here.
+backups/
 
 # Runtime TLS material (certbot-managed); keep the placeholder only
 certs/*

@@ -1,17 +1,13 @@
 name: archetype
 services:
   meilisearch:
-    image: getmeili/meilisearch:v1.45.2
+    image: getmeili/meilisearch:v1.50.0
     restart: unless-stopped
     environment:
-      # Meilisearch is no longer published on the host (see the missing `ports:`
-      # below), so it's only reachable over the internal compose network. To
-      # additionally require auth, set MEILI_ENV=production + a MEILI_MASTER_KEY
-      # (>= 16 bytes) in env_file and give the Django client the same key. The
-      # default stays `development` so an existing env_file (without these vars)
-      # keeps working on deploy rather than refusing to start without a key.
+      # MEILI_MASTER_KEY and MEILISEARCH_API_KEY live in env_file and must match.
+      # Don't list the master key here — an `environment:` entry overrides
+      # env_file and interpolates to empty, which 500s every search.
       - MEILI_ENV=${MEILI_ENV:-development}
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-}
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
       # refuse to start. No-op when versions already match. Safe — no embedders.
@@ -66,6 +62,10 @@ services:
     env_file: env_file
     volumes:
       - ./storage:/app/storage
+      # Media is bind-mounted separately (over the ./storage subpath above) so a
+      # deployment can keep the 30GB image corpus outside the infrastructure
+      # checkout. Defaults to the in-repo path, so existing deploys are unchanged.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
     depends_on:
       postgres:
         condition: service_healthy
@@ -83,7 +83,7 @@ services:
         - "CMD"
         - "python"
         - "-c"
-        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://localhost:8000/api/v1/schema/', timeout=5)\")"
+        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://127.0.0.1:80/api/v1/schema/', timeout=5)\")"
       interval: 30s
       timeout: 10s
       retries: 3
@@ -101,7 +101,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ >/dev/null 2>&1 || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -129,13 +129,25 @@ services:
     expose:
       - "1024"
     volumes:
-      - ./storage/media:/sipi/images
+      # Mounted one level deeper than imgroot (./images) on purpose: nginx passes
+      # the /sipi prefix through untouched so SIPI can echo it back in info.json's
+      # `id`, and with prefix_as_path that makes `sipi` a real directory segment
+      # under imgroot. Stripping the prefix instead made SIPI advertise
+      # unfetchable `https://localhost/...` ids and broke every IIIF viewer.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/sipi/images/sipi
       - ./sipi-config/sipi.config.lua:/sipi/config/sipi.config.lua:ro
       - ./sipi-config/sipi.init.lua:/sipi/config/sipi.init.lua:ro
     healthcheck:
-      # SIPI serves its own /server fileserver docroot; a TCP/HTTP probe to the
-      # listening port confirms the process is up on the hot image path.
-      test: ["CMD-SHELL", "curl -fsS http://localhost:1024/server/ >/dev/null 2>&1 || curl -fsS http://localhost:1024/ >/dev/null 2>&1 || exit 1"]
+      # CMD (exec) form, not CMD-SHELL: this image ships no /bin/sh, so every
+      # shell-form probe died with "exec: /bin/sh: no such file or directory"
+      # and the container sat permanently unhealthy. curl is present.
+      #
+      # No -f: SIPI answers / with 400 and /server/ with 404 (both are "the
+      # process is serving"), and -f would turn those into failures. Bare curl
+      # exits 0 on any HTTP response and non-zero only when the connection is
+      # refused — exactly the liveness signal we want. 127.0.0.1, not localhost:
+      # localhost resolves to ::1 first here and SIPI binds IPv4.
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://127.0.0.1:1024/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -161,7 +173,7 @@ services:
       # 301 → HTTPS, so we grep the response headers for an "HTTP/" status line:
       # any reply (incl. the 3xx) means nginx is serving. busybox wget on alpine
       # exits non-zero on a 3xx, so we ignore its exit code and check the output.
-      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://localhost/ 2>&1 | grep -q 'HTTP/'"]
+      test: ["CMD-SHELL", "wget -q -S -O /dev/null http://127.0.0.1/ 2>&1 | grep -q 'HTTP/'"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -185,7 +197,9 @@ services:
   #     - ./storage/media:/home/vsftpd/archetype_user
 
   redis:
-    image: redis:8-alpine
+    # Pinned exactly rather than to the floating `8-alpine` tag, which silently
+    # walked 8.0 -> 8.8 in place and made deploys non-reproducible.
+    image: redis:8.8.1-alpine
     restart: unless-stopped
     # Require a password (set REDIS_PASSWORD in env_file). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
