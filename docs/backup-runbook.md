@@ -4,7 +4,8 @@ This is the operational contract for the Archetype Postgres database. It
 covers what is dumped, where the dumps land, how to verify them, and how
 to restore from one — both partially (single table) and fully.
 
-The on-disk Postgres data directory (`postgres:/var/lib/postgresql/data`)
+The on-disk Postgres data directory (the `postgres18` volume, mounted at
+`/var/lib/postgresql` with `PGDATA=/var/lib/postgresql/18/docker`)
 is **not** a backup. Volume corruption, an accidental `docker compose
 down -v`, or a host disk failure all destroy it in one step. The logical
 dumps produced by the `pg_backup` sidecar are the source of truth for
@@ -21,7 +22,13 @@ The `pg_backup` service in `infrastructure/compose.yaml`:
 - Retention: 14 days; older dumps are deleted on each run.
 - Partial writes land at `*.sql.gz.partial` so a half-written file is
   never confused with a real backup. On a clean run it's renamed in
-  place; on failure it stays around for an operator to inspect.
+  place.
+
+> **On failure the partial is deleted, not kept.** The service logs
+> `[pg_backup] FAILED — leaving .partial for inspection` and then runs
+> `rm -f "$out.partial"` on the next line, so the message is wrong and no
+> artefact survives. **A failed dump leaves only a log line.** This is a bug in
+> `compose.yaml`, not just in this document — see "Known gap" below.
 
 Not covered by this runbook (and **not** in the dump):
 
@@ -53,20 +60,37 @@ place.
 
 ```sh
 # Last successful dump
-ls -lt infrastructure/backups/local-*.sql.gz | head -1
+ls -lt backups/local-*.sql.gz | head -1
 
 # Sidecar logs (look for the "[pg_backup] OK …" lines)
 docker compose logs --tail=20 pg_backup
 ```
 
-Two failure shapes worth watching for:
+The failure shape to watch for:
 
-- `*.sql.gz.partial` files older than a few minutes — the dump is
-  failing partway through (most often: disk space, broken socket to
-  Postgres, schema referencing a missing extension).
-- No new dump in >25h — sidecar exited or never started. Compose will
-  restart it (`restart: unless-stopped`), but a consistently-restarting
-  sidecar is a real fault; check `docker compose ps`.
+- **No new dump in >25h** — the sidecar exited, never started, or is failing
+  every cycle. Compose restarts it (`restart: unless-stopped`), but a
+  consistently-restarting sidecar is a real fault; check `docker compose ps`.
+
+Age of the newest dump is the *only* reliable signal, because a failing dump
+leaves nothing behind but a log line. Grep for the failure directly:
+
+```sh
+docker compose logs pg_backup | grep FAILED
+```
+
+### Known gap
+
+`compose.yaml`'s failure branch deletes the partial it says it is keeping:
+
+```sh
+echo "[pg_backup] FAILED — leaving .partial for inspection" >&2
+rm -f "$$out.partial" || true          # ← contradicts the line above
+```
+
+Dropping the `rm -f` restores the documented behaviour and gives failures a
+durable artefact. It is left as-is pending a decision, because it changes what
+accumulates in `./backups/` on a persistently failing sidecar.
 
 ## Restore — full
 
@@ -74,29 +98,44 @@ The procedure assumes you're restoring into the same compose stack and
 you accept downtime. For a hot-spare restore, see "Restore to a
 parallel database" below.
 
+**Run every command from `infrastructure/`.** The paths below are relative to
+it, and `docker compose` must resolve *this* stack's `compose.yaml` (project
+`archetype`) — see the warning after step 5.
+
 ```sh
 # 1. Stop services that write to the DB. Keep postgres running.
 docker compose stop api celery
 
 # 2. Drop and recreate the target database.
+#    -U/-d default to POSTGRES_USER/POSTGRES_DB (postgres/local unless
+#    env_file overrides them). Confirm before running against production.
 docker compose exec postgres psql -U postgres -d postgres \
     -c "DROP DATABASE local;"
 docker compose exec postgres psql -U postgres -d postgres \
     -c "CREATE DATABASE local OWNER postgres;"
 
 # 3. Restore the dump (replace with the dump you want).
-gunzip -c infrastructure/backups/local-20260518T040000Z.sql.gz \
+gunzip -c backups/local-20260518T040000Z.sql.gz \
     | docker compose exec -T postgres psql -U postgres -d local
 
 # 4. Bring services back up.
 docker compose up -d api celery
 
-# 5. Rebuild the search indexes from the restored DB.
-cd ../api && just sync-all-search-indexes
+# 5. Rebuild the search indexes from the restored DB — from HERE, not ../api.
+just sync-all-search-indexes
 ```
 
 The Meilisearch rebuild is required because the indexes will still
 reference rows from the pre-restore state.
+
+> **Step 5 previously read `cd ../api && just sync-all-search-indexes`, which
+> silently rebuilt the wrong stack.** `api/compose.yaml` is a separate
+> dev/CI stack under the compose project `archetype-dev`, with its own
+> containers, network and Meilisearch volume. Running its recipe reindexes the
+> *development* search engine and leaves production's indexes still pointing at
+> pre-restore rows — the exact failure step 5 exists to prevent, and a silent
+> one: the command succeeds. `infrastructure/justfile` has its own
+> `sync-all-search-indexes`; use that.
 
 ## Restore — partial (single table)
 
@@ -104,7 +143,7 @@ reference rows from the pre-restore state.
 work on it. To pull one table:
 
 ```sh
-gunzip -c infrastructure/backups/local-20260518T040000Z.sql.gz \
+gunzip -c backups/local-20260518T040000Z.sql.gz \
     | sed -n '/^COPY public.app_label_modelname /,/^\\.$/p' \
     > restore-modelname.sql
 ```
@@ -120,7 +159,7 @@ Useful when you want to verify a dump WITHOUT touching the live DB:
 ```sh
 docker compose exec postgres psql -U postgres -d postgres \
     -c "CREATE DATABASE local_restore_test;"
-gunzip -c infrastructure/backups/local-20260518T040000Z.sql.gz \
+gunzip -c backups/local-20260518T040000Z.sql.gz \
     | docker compose exec -T postgres psql -U postgres -d local_restore_test
 docker compose exec postgres psql -U postgres -d local_restore_test \
     -c "SELECT count(*) FROM manuscripts_itempart;"
@@ -151,3 +190,7 @@ docker compose run --rm pg_backup sh -c \
 ```
 
 Use this before a destructive migration or schema rebase.
+
+**Manual dumps are reaped on the same 14-day schedule.** The retention sweep
+matches `local-*.sql.gz`, and `local-manual-…` matches it too. If a pre-migration
+safety dump needs to outlive two weeks, copy it somewhere outside `./backups/`.

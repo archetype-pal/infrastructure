@@ -1,6 +1,6 @@
 # PostgreSQL 18 Upgrade
 
-This infrastructure stack now runs PostgreSQL 18 via `postgres:18.3-bookworm`.
+This infrastructure stack runs PostgreSQL 18 via `${POSTGRES_IMAGE:-postgres:18.4-bookworm}` (`compose.yaml`). It stays on the *bookworm* base deliberately: the data directory's collation was created against glibc 2.36, and the trixie base (2.41) trips a collation-version mismatch that would force a REINDEX.
 
 PostgreSQL major versions cannot reuse an older major-version data directory in place. PostgreSQL 18 Docker images also use versioned `PGDATA` under `/var/lib/postgresql/18/docker`, so this Compose file mounts a new `postgres18` volume at `/var/lib/postgresql`.
 
