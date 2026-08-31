@@ -234,7 +234,16 @@ services:
       # tile from SIPI to prove the converted JP2 is servable. IIIF_HOST in
       # env_file is the BROWSER-facing address, which this container cannot
       # reach — the worker must talk to SIPI over the internal compose network.
-      - UPLOADS_SIPI_BASE_URL=http://image_server:1024
+      #
+      # The `/sipi` segment is REQUIRED and easy to lose: media is mounted at
+      # /sipi/images/sipi while sipi.config.lua sets imgroot=./images with
+      # prefix_as_path, so every identifier this deployment serves is prefixed
+      # `sipi/`. Without it the smoke test 404s on every upload, the ingest task
+      # deletes the JP2 it just converted, and the session fails — verified from
+      # this container: no prefix -> 404, with prefix -> 200. The dev stack in
+      # backend/compose.yaml mounts media at /sipi/images (no prefix), which is
+      # why a dev-stack test cannot catch this.
+      - UPLOADS_SIPI_BASE_URL=http://image_server:1024/sipi
     volumes:
       # The upload ingest pipeline runs on this worker: it reads chunk files
       # from storage/uploads_tmp/ and writes the converted JP2 under
