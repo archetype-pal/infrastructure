@@ -31,15 +31,20 @@ Following the instructions require a little bit of a technical background.
     ```bash
     >>> just up-bg
     ```
-4. Run the database migrations
+4. Set up storage permissions for carousel/partner-logo uploads (the api
+   container runs as uid 999; without this, the first upload 500s)
+    ```bash
+    >>> just setup-carousel-storage
+    ```
+5. Run the database migrations
     ```bash
     >>> just migrate
     ```
-5. Build the search indexes (creates the Meilisearch schemas and loads documents from the DB)
+6. Build the search indexes (creates the Meilisearch schemas and loads documents from the DB)
     ```bash
     >>> just reindex
     ```
-6. Open the website in your browser by navigating to `http://localhost`
+7. Open the website in your browser by navigating to `http://localhost`
 
 > Run `just` (or `just --list`) at any time to see every available command.
 
@@ -71,6 +76,24 @@ Releases needing that extra step say so in their notes. The July 2026 TEI
 manuscript-descriptions release is one: it adds `material`, `script`,
 `deco_type` and `origin_place` facets to the `item-parts` index, and a
 `manuscripts` migration for the new description tables.
+
+**The release that added nginx-served carousel/partner-logo media**
+(`storage/media/{carousel,partners}/`, see `infrastructure#4`) needs one extra
+step on any deployment, first or upgrade:
+
+```bash
+>>> just setup-carousel-storage
+```
+
+This creates those two directories and gives them the ownership the api
+container needs to write into them — without it, the first carousel/partner
+upload 500s with a `PermissionError`. **If your deployment sets
+`MEDIA_HOST_PATH` to store the manuscript corpus outside this checkout**, also
+copy any existing files from `<MEDIA_HOST_PATH>/carousel/` and
+`<MEDIA_HOST_PATH>/partners/` into `./storage/media/carousel/` and
+`./storage/media/partners/` before recreating the stack — carousel/partner
+media always lives in the checkout now, regardless of `MEDIA_HOST_PATH`, so
+those files otherwise silently stop being served.
 
 
 ## Setup the TLS certificates on your server

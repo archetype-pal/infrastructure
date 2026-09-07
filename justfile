@@ -154,6 +154,21 @@ reindex: setup-search-indexes sync-all-search-indexes
 celery_status:
     docker compose run --rm api celery -A config inspect active
 
+# --- Carousel / partner-logo media (backoffice, plain Django media) --------
+# Unlike manuscript images (served via SIPI) or the upload pipeline's staging
+# dirs, carousel/partner-logo images are served directly by nginx via `alias`
+# (see nginx.conf) and always live under ./storage/media/{carousel,partners}
+# in this checkout, regardless of where MEDIA_HOST_PATH points the (much
+# larger) manuscript corpus (see compose.yaml's api service). The api/celery
+# containers run as uid 999; until these directories exist and are writable
+# by that uid, the first carousel/partner upload 500s with a bare
+# PermissionError. The chown runs inside the api image (as root) so no host
+# sudo is needed.
+
+# One-time setup: create the carousel/partner storage dirs and chown to uid 999
+setup-carousel-storage:
+    docker compose run --rm --no-deps -u root api sh -c 'mkdir -p /app/storage/media/carousel /app/storage/media/partners && chown -R 999:999 /app/storage/media/carousel /app/storage/media/partners'
+
 # --- Database backup / PostgreSQL --------------------------------------------
 
 # Take a one-off gzipped pg_dump into ./backups/ (see docs/backup-runbook.md)
