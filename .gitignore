@@ -9,5 +9,16 @@ backups/
 certs/*
 !certs/.keep
 
-# Uploaded media / runtime storage
-storage/
+# Uploaded media / runtime storage. Carousel/partner-logo dirs are the
+# exception: nginx and api need them to exist (with correct ownership via
+# `just setup-carousel-storage`) even in a fresh checkout, so only their
+# placeholders are tracked here — actual uploaded files stay ignored.
+storage/*
+!storage/media/
+storage/media/*
+!storage/media/carousel/
+!storage/media/partners/
+storage/media/carousel/*
+!storage/media/carousel/.gitkeep
+storage/media/partners/*
+!storage/media/partners/.gitkeep

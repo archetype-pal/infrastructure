@@ -66,6 +66,15 @@ services:
       # deployment can keep the 30GB image corpus outside the infrastructure
       # checkout. Defaults to the in-repo path, so existing deploys are unchanged.
       - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
+      # Carousel/partner uploads always stay in the local checkout, even when
+      # MEDIA_HOST_PATH points elsewhere for the (much larger) manuscript
+      # image corpus — these more specific mounts overlay the broader one
+      # above, the same layering trick that mount already uses over
+      # ./storage:/app/storage. This keeps api's writes and nginx's alias-based
+      # reads (nginx.conf) always looking at the same directory. See
+      # infrastructure#4 and `just setup-carousel-storage`.
+      - ./storage/media/carousel:/app/storage/media/carousel
+      - ./storage/media/partners:/app/storage/media/partners
     depends_on:
       postgres:
         condition: service_healthy
@@ -160,6 +169,11 @@ services:
       - ./certs:/etc/nginx/certs:ro
       - ./html:/var/www/certbot:ro
       - ./nginx-entrypoint.sh:/docker-entrypoint.d/nginx-entrypoint.sh:ro
+      # Read-only source for the /media/carousel/ and /media/partners/ alias
+      # routes in nginx.conf. Mounted at the parent (not two separate mounts)
+      # so it works even before the subdirectories are populated; nginx never
+      # writes here. See infrastructure#4.
+      - ./storage/media:/srv/media:ro
     entrypoint: ["/bin/sh", "/docker-entrypoint.d/nginx-entrypoint.sh"]
     depends_on:
       api:
@@ -213,6 +227,15 @@ services:
     image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
     restart: unless-stopped
     command: celery -A config worker -l info
+    volumes:
+      # Nothing async touches carousel/partner media today (uploads are a
+      # synchronous request), so celery doesn't strictly need these yet. Added
+      # for symmetry with api's identical overlay mounts anyway: `main` gives
+      # celery no storage/media mount at all, but #3 (still open) adds the
+      # broad ${MEDIA_HOST_PATH} one — once that lands, these keep celery's
+      # view of carousel/partners from diverging from api's and nginx's.
+      - ./storage/media/carousel:/app/storage/media/carousel
+      - ./storage/media/partners:/app/storage/media/partners
     depends_on:
       redis:
         condition: service_healthy
