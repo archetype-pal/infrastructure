@@ -226,6 +226,12 @@ services:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - MEILISEARCH_URL=http://meilisearch:7700
+    volumes:
+      - ./storage:/app/storage
+      # Media is bind-mounted separately (over the ./storage subpath above) so a
+      # deployment can keep the 30GB image corpus outside the infrastructure
+      # checkout. Defaults to the in-repo path, so existing deploys are unchanged.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
     # `inspect ping` is Celery's canonical liveness probe — it round-trips
     # through the broker and the worker's mingle queue, so a green check
     # means "worker is consuming tasks", not just "process exists". `-d`
