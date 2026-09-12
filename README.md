@@ -73,6 +73,23 @@ manuscript-descriptions release is one: it adds `material`, `script`,
 `manuscripts` migration for the new description tables.
 
 
+## Enable image uploads (backoffice)
+
+Superusers can upload manuscript images from the backoffice. The upload
+pipeline writes under `storage/` from the backend containers, which run as
+the image's unprivileged `archetype` user, so the target directories need a
+one-time setup:
+
+```bash
+>>> just setup-upload-storage
+```
+
+The converted JP2 is the only copy of an uploaded image. Uploads land under
+`MEDIA_HOST_PATH` (default `storage/media/`) — see
+[the backup runbook](./docs/backup-runbook.md) for why that variable decides
+what your backup job has to cover.
+
+
 ## Setup the TLS certificates on your server
 This is *optional* for those who want to deploy their website securely using `https` on a custom domain.
 
