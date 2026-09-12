@@ -77,7 +77,8 @@ manuscript-descriptions release is one: it adds `material`, `script`,
 
 Superusers can upload manuscript images from the backoffice. The upload
 pipeline writes under `storage/` from the backend containers, which run as
-uid 999, so the target directories need a one-time setup:
+the image's unprivileged `archetype` user, so the target directories need a
+one-time setup:
 
 ```bash
 >>> just setup-upload-storage
