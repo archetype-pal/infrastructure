@@ -170,11 +170,12 @@ services:
       - ./certs:/etc/nginx/certs:ro
       - ./html:/var/www/certbot:ro
       - ./nginx-entrypoint.sh:/docker-entrypoint.d/nginx-entrypoint.sh:ro
-      # Read-only source for the /media/carousel/ and /media/partners/ alias
-      # routes in nginx.conf. Mounted at the parent (not two separate mounts)
-      # so it works even before the subdirectories are populated; nginx never
-      # writes here. See infrastructure#4.
-      - ./storage/media:/srv/media:ro
+      # Read-only sources for the /media/carousel/ and /media/partners/ routes
+      # in nginx.conf. Only these two directories: nginx has no reason to see
+      # the rest of storage/media. Both are tracked (.gitkeep), so they exist
+      # in a fresh checkout. See infrastructure#4.
+      - ./storage/media/carousel:/srv/media/carousel:ro
+      - ./storage/media/partners:/srv/media/partners:ro
     entrypoint: ["/bin/sh", "/docker-entrypoint.d/nginx-entrypoint.sh"]
     depends_on:
       api:
