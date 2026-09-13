@@ -31,7 +31,7 @@ services:
     # created with 2.36, and the trixie base (glibc 2.41) triggers a collation
     # version mismatch that would force a REINDEX. The postgres image isn't
     # CVE-scanned by CD, so a newer base buys nothing here.
-    image: ${POSTGRES_IMAGE:-postgres:18.4-bookworm}
+    image: ${POSTGRES_IMAGE:-postgres:18.6-bookworm}
     restart: unless-stopped
     volumes:
       # PostgreSQL 18 Docker images use versioned PGDATA under /var/lib/postgresql.
@@ -66,13 +66,10 @@ services:
       # deployment can keep the 30GB image corpus outside the infrastructure
       # checkout. Defaults to the in-repo path, so existing deploys are unchanged.
       - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
-      # Carousel/partner uploads always stay in the local checkout, even when
-      # MEDIA_HOST_PATH points elsewhere for the (much larger) manuscript
-      # image corpus — these more specific mounts overlay the broader one
-      # above, the same layering trick that mount already uses over
-      # ./storage:/app/storage. This keeps api's writes and nginx's alias-based
-      # reads (nginx.conf) always looking at the same directory. See
-      # infrastructure#4 and `just setup-carousel-storage`.
+      # Carousel images and partner logos always live in this checkout, even
+      # when MEDIA_HOST_PATH moves the manuscript corpus elsewhere. These
+      # narrower mounts overlay the one above, so api writes where nginx reads
+      # (nginx.conf). See infrastructure#4 and `just setup-upload-storage`.
       - ./storage/media/carousel:/app/storage/media/carousel
       - ./storage/media/partners:/app/storage/media/partners
     depends_on:
@@ -119,6 +116,10 @@ services:
     image: daschswiss/sipi:v5.0.1
     restart: unless-stopped
     user: "14:50"
+    # SIPI has no internal memory cap and has been OOM-killed while rendering
+    # large images. With a container limit the kernel kills (and compose
+    # restarts) only SIPI, instead of host-wide OOM taking down other services.
+    mem_limit: 2g
     # SIPI's Lua config reads these via os.getenv(): override the stock demo
     # jwt_secret / admin credentials and the production loglevel. Leaving them
     # unset falls back to the vendored demo values (still denied at the nginx
@@ -158,7 +159,7 @@ services:
       retries: 3
       start_period: 20s
   nginx:
-    image: nginx:1.30-alpine
+    image: nginx:1.31-alpine
     restart: unless-stopped
     ports:
       - "80:80"
@@ -189,7 +190,7 @@ services:
       retries: 3
       start_period: 10s
   certbot:
-    image: certbot/certbot:v5.6.0
+    image: certbot/certbot:v5.8.0
     volumes:
       - ./certs:/etc/letsencrypt
       - ./html:/var/www/certbot
@@ -209,7 +210,7 @@ services:
   redis:
     # Pinned exactly rather than to the floating `8-alpine` tag, which silently
     # walked 8.0 -> 8.8 in place and made deploys non-reproducible.
-    image: redis:8.8.1-alpine
+    image: redis:8.10.1-alpine
     restart: unless-stopped
     # Require a password (set REDIS_PASSWORD in env_file). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
@@ -227,15 +228,6 @@ services:
     image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
     restart: unless-stopped
     command: celery -A config worker -l info
-    volumes:
-      # Nothing async touches carousel/partner media today (uploads are a
-      # synchronous request), so celery doesn't strictly need these yet. Added
-      # for symmetry with api's identical overlay mounts anyway: `main` gives
-      # celery no storage/media mount at all, but #3 (still open) adds the
-      # broad ${MEDIA_HOST_PATH} one — once that lands, these keep celery's
-      # view of carousel/partners from diverging from api's and nginx's.
-      - ./storage/media/carousel:/app/storage/media/carousel
-      - ./storage/media/partners:/app/storage/media/partners
     depends_on:
       redis:
         condition: service_healthy
@@ -249,6 +241,36 @@ services:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - MEILISEARCH_URL=http://meilisearch:7700
+      # The image-upload ingest task (apps.uploads) ends by requesting a real
+      # tile from SIPI to prove the converted JP2 is servable. IIIF_HOST in
+      # env_file is the BROWSER-facing address, which this container cannot
+      # reach — the worker must talk to SIPI over the internal compose network.
+      #
+      # The `/sipi` segment is REQUIRED and easy to lose: media is mounted at
+      # /sipi/images/sipi while sipi.config.lua sets imgroot=./images with
+      # prefix_as_path, so every identifier this deployment serves is prefixed
+      # `sipi/`. Without it the smoke test 404s on every upload, the ingest task
+      # deletes the JP2 it just converted, and the session fails — verified from
+      # this container: no prefix -> 404, with prefix -> 200. The dev stack in
+      # backend/compose.yaml mounts media at /sipi/images (no prefix), which is
+      # why a dev-stack test cannot catch this.
+      - UPLOADS_SIPI_BASE_URL=http://image_server:1024/sipi
+    volumes:
+      # The upload ingest pipeline runs on this worker: it reads chunk files
+      # from storage/uploads_tmp/ and writes the converted JP2 under
+      # storage/media/uploads/. Without this mount every upload fails at the
+      # conversion step.
+      - ./storage:/app/storage
+      # Media must resolve to the SAME host path as api and image_server (both
+      # alias it via MEDIA_HOST_PATH). With only the mount above, a deployment
+      # that points MEDIA_HOST_PATH at an external corpus would have the worker
+      # write into the checkout while api and SIPI read from the corpus — the
+      # upload would succeed and then 404.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
+      # The same carousel/partner overlays as api, so the worker never sees a
+      # different copy of those directories.
+      - ./storage/media/carousel:/app/storage/media/carousel
+      - ./storage/media/partners:/app/storage/media/partners
     # `inspect ping` is Celery's canonical liveness probe — it round-trips
     # through the broker and the worker's mingle queue, so a green check
     # means "worker is consuming tasks", not just "process exists". `-d`

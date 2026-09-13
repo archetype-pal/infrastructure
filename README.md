@@ -31,10 +31,10 @@ Following the instructions require a little bit of a technical background.
     ```bash
     >>> just up-bg
     ```
-4. Set up storage permissions for carousel/partner-logo uploads (the api
-   container runs as uid 999; without this, the first upload 500s)
+4. Set up the storage the backoffice uploads write to (the backend containers
+   run as an unprivileged user; without this, the first upload fails)
     ```bash
-    >>> just setup-carousel-storage
+    >>> just setup-upload-storage
     ```
 5. Run the database migrations
     ```bash
@@ -82,11 +82,11 @@ manuscript-descriptions release is one: it adds `material`, `script`,
 step on any deployment, first or upgrade:
 
 ```bash
->>> just setup-carousel-storage
+>>> just setup-upload-storage
 ```
 
-This creates those two directories and gives them the ownership the api
-container needs to write into them — without it, the first carousel/partner
+It now also creates those two directories and gives them the ownership the
+api container needs to write into them — without it, the first carousel/partner
 upload 500s with a `PermissionError`. **If your deployment sets
 `MEDIA_HOST_PATH` to store the manuscript corpus outside this checkout**, also
 copy any existing files from `<MEDIA_HOST_PATH>/carousel/` and
@@ -94,6 +94,23 @@ copy any existing files from `<MEDIA_HOST_PATH>/carousel/` and
 `./storage/media/partners/` before recreating the stack — carousel/partner
 media always lives in the checkout now, regardless of `MEDIA_HOST_PATH`, so
 those files otherwise silently stop being served.
+
+
+## Enable image uploads (backoffice)
+
+Superusers can upload manuscript images from the backoffice. The upload
+pipeline writes under `storage/` from the backend containers, which run as
+the image's unprivileged `archetype` user, so the target directories need a
+one-time setup:
+
+```bash
+>>> just setup-upload-storage
+```
+
+The converted JP2 is the only copy of an uploaded image. Uploads land under
+`MEDIA_HOST_PATH` (default `storage/media/`) — see
+[the backup runbook](./docs/backup-runbook.md) for why that variable decides
+what your backup job has to cover.
 
 
 ## Setup the TLS certificates on your server
