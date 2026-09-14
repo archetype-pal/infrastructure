@@ -154,17 +154,20 @@ reindex: setup-search-indexes sync-all-search-indexes
 celery_status:
     docker compose run --rm api celery -A config inspect active
 
-# --- Image uploads (backoffice, apps.uploads) ---------------------------------
-# The upload pipeline writes to storage/uploads_tmp/ (chunk staging) and
-# storage/media/uploads/ (the served JP2s) from the api/celery containers,
-# which run as the image's `archetype` user. Until those directories exist and are
-# writable by that uid, every upload request fails with a 503 "not writable
-# by the service user" error.
+# --- Backoffice upload storage ------------------------------------------------
+# The api/celery containers run as the image's unprivileged `archetype` user and
+# write to storage/uploads_tmp/ (chunk staging), storage/media/uploads/ (the
+# served JP2s) and storage/media/{carousel,partners}/ (the plain Django
+# ImageFields on CarouselItem and Partner). Until those directories exist and are
+# writable by that user, uploads fail: apps.uploads returns a 503 "not writable
+# by the service user", while a carousel or partner upload 500s with a bare
+# PermissionError, because Django creates the directory itself on first save and
+# cannot write into a host-owned storage/media/.
 # The chown runs inside the api image (as root) so no host sudo is needed.
 
 # One-time setup: create the upload storage dirs and chown them to the service user
 setup-upload-storage:
-    docker compose run --rm --no-deps -u root api sh -c 'mkdir -p /app/storage/uploads_tmp /app/storage/media/uploads && chown -R archetype:archetype /app/storage/uploads_tmp /app/storage/media/uploads'
+    docker compose run --rm --no-deps -u root api sh -c 'dirs="/app/storage/uploads_tmp /app/storage/media/uploads /app/storage/media/carousel /app/storage/media/partners"; mkdir -p $dirs && chown -R archetype:archetype $dirs'
 
 # --- Database backup / PostgreSQL --------------------------------------------
 
