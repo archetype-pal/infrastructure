@@ -67,6 +67,14 @@ Gotchas found while building this host:
   interpolation variables, so they must be in `.env`, not only in `env_file`.
 - The api reads `CELERY_BROKER_URL`, `CELERY_RESULT_BACKEND` and `CACHE_URL`
   from `env_file`; their defaults carry no Redis password, so set them there.
+- nginx resolves the `api` and `frontend` upstreams once at startup. After any
+  command that recreates those containers, restart nginx or it returns 502.
+  `scripts/deploy.sh` does this itself.
+- Restore a database whose migration history matches `main`. The dev database
+  used on 2026-09-14 also carried AI-programme branch migrations: 14 migrations
+  main does not have, extra tables, and NOT NULL columns without defaults on
+  `manuscripts_itemimage` and `manuscripts_repository`. Reads work, but inserts
+  into those tables fail, image uploads included.
 - `SECURE_SSL_REDIRECT=False`: public traffic is always HTTPS at the edge, and
   the frontend's server-side calls to `http://api` must not be redirected.
 
