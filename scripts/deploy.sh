@@ -41,8 +41,10 @@ deploy() {
     set_pin FRONTEND_IMAGE "$2"
     docker compose pull --quiet api celery frontend
     docker compose up -d --remove-orphans --wait --wait-timeout 300
-    just migrate
-    just collectstatic
+    # `docker compose run` inside these recipes reads stdin; detach it so a
+    # caller's piped input (ssh 'bash -s' < script) is not swallowed.
+    just migrate </dev/null
+    just collectstatic </dev/null
     smoke
 }
 
