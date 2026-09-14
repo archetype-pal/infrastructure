@@ -164,6 +164,8 @@ services:
       - ./certs:/etc/nginx/certs:ro
       - ./html:/var/www/certbot:ro
       - ./nginx-entrypoint.sh:/docker-entrypoint.d/nginx-entrypoint.sh:ro
+      # Served directly at /media (see nginx.conf); same corpus as api and SIPI.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/srv/media:ro
     entrypoint: ["/bin/sh", "/docker-entrypoint.d/nginx-entrypoint.sh"]
     depends_on:
       api:
