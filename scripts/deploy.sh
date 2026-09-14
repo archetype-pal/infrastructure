@@ -36,11 +36,19 @@ smoke() {
     done
 }
 
+# nginx resolves the api/frontend upstreams once at startup, so a recreated
+# container leaves it proxying to a dead IP (502). Restart it after every up.
+up() {
+    docker compose up -d --remove-orphans --wait --wait-timeout 300
+    docker compose restart nginx
+    docker compose up -d --wait --wait-timeout 120 nginx cloudflared
+}
+
 deploy() {
     set_pin BACKEND_IMAGE "$1"
     set_pin FRONTEND_IMAGE "$2"
     docker compose pull --quiet api celery frontend
-    docker compose up -d --remove-orphans --wait --wait-timeout 300
+    up
     # `docker compose run` inside these recipes reads stdin; detach it so a
     # caller's piped input (ssh 'bash -s' < script) is not swallowed.
     just migrate </dev/null
@@ -60,6 +68,6 @@ if [ -n "$prev_backend" ] && [ -n "$prev_frontend" ]; then
     echo "Rolling back to backend=$prev_backend frontend=$prev_frontend" >&2
     set_pin BACKEND_IMAGE "$prev_backend"
     set_pin FRONTEND_IMAGE "$prev_frontend"
-    docker compose up -d --remove-orphans --wait --wait-timeout 300 || true
+    up || true
 fi
 exit 1
