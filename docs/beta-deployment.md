@@ -75,6 +75,12 @@ Gotchas found while building this host:
   main does not have, extra tables, and NOT NULL columns without defaults on
   `manuscripts_itemimage` and `manuscripts_repository`. Reads work, but inserts
   into those tables fail, image uploads included.
+- `NEXT_PUBLIC_IIIF_UPSTREAM` is the bare origin, never `…/sipi`. The frontend
+  keeps `/sipi` from the API's IIIF URLs when it builds `/iiif-proxy` paths, so
+  a `/sipi` upstream doubles the segment and every manuscript image 404s. It is
+  baked in at build time, so the fix is in the frontend's `cd.yml`.
+- Django serves `/media` only with `DEBUG` on; nginx serves it from the media
+  mount instead. Without that, the home-page carousel images 404.
 - `SECURE_SSL_REDIRECT=False`: public traffic is always HTTPS at the edge, and
   the frontend's server-side calls to `http://api` must not be redirected.
 
