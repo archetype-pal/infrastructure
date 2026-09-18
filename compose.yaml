@@ -59,6 +59,13 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings
       MEILISEARCH_URL: http://meilisearch:7700
+      # Server-to-server SIPI address for info.json probes (IIIF manifest canvas
+      # sizes). IIIF_HOST in env_file is the BROWSER-facing address; from inside
+      # this container it either hairpins through nginx or fails, and every
+      # failure costs the manifest a 5s timeout plus retry before it falls back
+      # to a guessed size. Same `/sipi` prefix rule as UPLOADS_SIPI_BASE_URL on
+      # the celery service below.
+      IIIF_INTERNAL_HOST: http://image_server:1024/sipi
     env_file: env_file
     volumes:
       - ./storage:/app/storage
