@@ -75,14 +75,19 @@ manuscript-descriptions release is one: it adds `material`, `script`,
 
 ## Enable image uploads (backoffice)
 
-Superusers can upload manuscript images from the backoffice. The upload
-pipeline writes under `storage/` from the backend containers, which run as
-the image's unprivileged `archetype` user, so the target directories need a
-one-time setup:
+Superusers can upload manuscript images from the backoffice, and carousel
+images and partner logos from the site-content screens. Both write under
+`storage/` from the backend containers, which run as the image's unprivileged
+`archetype` user, so the target directories need a one-time setup:
 
 ```bash
 >>> just setup-upload-storage
 ```
+
+Run it on upgrades too, not just first deployments: it now also prepares
+`storage/media/carousel/` and `storage/media/partners/`. Without it the first
+carousel or partner upload fails with a server error, because the container
+cannot create those directories under a host-owned `storage/media/`.
 
 The converted JP2 is the only copy of an uploaded image. Uploads land under
 `MEDIA_HOST_PATH` (default `storage/media/`) — see
