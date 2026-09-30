@@ -1,4 +1,4 @@
-# Beta deployment (archetype.elghareeb.space)
+# Beta deployment (beta.archetype-pal.ink)
 
 A single Hetzner CX33 (4 vCPU, 8 GB, Ubuntu) runs the full stack behind a
 Cloudflare Tunnel. No web ports are open; SSH is the only inbound service.
@@ -27,7 +27,7 @@ Docker-published ports bypass ufw, so publishing one would expose the stack.
 
 - **push to main**: redeploy with this repo's latest config.
 - **every 15 minutes**: deploy newly published `backend:latest` /
-  `frontend:elghareeb` images; a no-op when the digests are unchanged.
+  `frontend:beta` images; a no-op when the digests are unchanged.
 - **manual run**: optionally pass explicit images, which is also how to roll back.
 
 `deploy.sh` pulls, restarts, migrates, collects static, then smoke-tests
@@ -41,7 +41,7 @@ GitHub disables scheduled workflows after 60 days without repository
 activity. Re-enable the workflow in the Actions tab if image deploys stop.
 
 The frontend inlines `NEXT_PUBLIC_*` at build time, so this domain has its own
-image: the `elghareeb` build in the frontend repo's `cd.yml`.
+image: the `beta` build in the frontend repo's `cd.yml`.
 
 ## Rebuilding the host from scratch
 
@@ -56,7 +56,11 @@ image: the `elghareeb` build in the frontend repo's `cd.yml`.
    `docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --role="$POSTGRES_USER"' < dump`
 7. `docker compose up -d --wait`, then `just migrate`, `just collectstatic`,
    `just setup-upload-storage`, `just reindex`.
-8. `cloudflared tunnel route dns --overwrite-dns <name> archetype.elghareeb.space`
+8. `cloudflared tunnel route dns --overwrite-dns <name> beta.archetype-pal.ink`.
+   The `cert.pem` from `cloudflared tunnel login` is scoped to the zone picked
+   at login; one for another zone silently creates
+   `beta.archetype-pal.ink.<that zone>` instead. Adding a proxied CNAME to
+   `<tunnel id>.cfargotunnel.com` in the dashboard does the same job.
 
 Gotchas found while building this host:
 

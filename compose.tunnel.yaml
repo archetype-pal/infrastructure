@@ -6,8 +6,8 @@
 #   * nginx serves plain HTTP only (see nginx.tunnel.conf) — Cloudflare
 #     terminates TLS at the edge, so no certs and no 80->443 redirect.
 #   * The HTTP listener is published on ${NGINX_HTTP_PORT:-8090} instead of 80.
-#     cloudflared then routes archetype.elghareeb.space -> http://localhost:8090
-#     via an explicit ingress rule placed ABOVE the `*.elghareeb.space` wildcard.
+#     cloudflared then routes the public hostname -> http://localhost:8090
+#     via an explicit ingress rule placed ABOVE the zone's wildcard.
 #     Binding host port 80 here would swallow that wildcard and hand every other
 #     subdomain (Coolify's Traefik vhosts) archetype's nginx instead.
 #   * certbot is not used; it stays defined in compose.yaml but is never run.

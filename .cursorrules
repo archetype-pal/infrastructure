@@ -1,7 +1,7 @@
 # Archetype Project Rules
 
 ## Project Overview
-This is the Archetype project. The project primarily runs on **https://archetype.elghareeb.space** in production.
+This is the Archetype project. The project primarily runs on **https://beta.archetype-pal.ink** in production.
 
 ## Build and Run Commands
 
@@ -45,7 +45,7 @@ Key services:
 ## Development Workflow
 - Use `docker compose` commands (or the justfile) from the `infrastructure/` directory.
 - The justfile provides convenient shortcuts for common operations; `just --list` shows them.
-- Production URL: https://archetype.elghareeb.space
+- Production URL: https://beta.archetype-pal.ink
 
 ## Project Structure
 - `api/` - Django backend application
