@@ -1,0 +1,45 @@
+# Run cloudflared inside the stack instead of on the host. Layer it on top of
+# the tunnel overlay, most simply via COMPOSE_FILE in .env so every `docker
+# compose` / `just` call picks it up:
+#
+#   COMPOSE_FILE=compose.yaml:compose.tunnel.yaml:compose.cloudflared.yaml
+#
+# cloudflared reaches nginx over the compose network, so nginx publishes no host
+# port. That matters on a public host: Docker-published ports bypass ufw.
+#
+# .env must set CLOUDFLARE_TUNNEL_ID and CLOUDFLARE_CREDENTIALS_FILE (the
+# tunnel's credentials JSON, readable by the image's nonroot uid 65532).
+
+services:
+  nginx:
+    ports: !reset []
+
+  # No certificates in tunnel mode; keep certbot out of `up`.
+  certbot:
+    profiles: ["certbot"]
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.9.1
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - --metrics
+      - 0.0.0.0:2000
+      - run
+      - --credentials-file
+      - /etc/cloudflared/credentials.json
+      - --url
+      - http://nginx:80
+      - ${CLOUDFLARE_TUNNEL_ID:?set CLOUDFLARE_TUNNEL_ID in .env}
+    volumes:
+      - ${CLOUDFLARE_CREDENTIALS_FILE:?set CLOUDFLARE_CREDENTIALS_FILE in .env}:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      nginx:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "--metrics", "localhost:2000", "ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

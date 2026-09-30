@@ -30,7 +30,7 @@ services:
     # created with 2.36, and the trixie base (glibc 2.41) triggers a collation
     # version mismatch that would force a REINDEX. The postgres image isn't
     # CVE-scanned by CD, so a newer base buys nothing here.
-    image: ${POSTGRES_IMAGE:-postgres:18.4-bookworm}
+    image: ${POSTGRES_IMAGE:-postgres:18.6-bookworm}
     restart: ${RESTART}
     volumes:
       # PostgreSQL 18 Docker images use versioned PGDATA under /var/lib/postgresql.
@@ -59,6 +59,7 @@ services:
       - DJANGO_SETTINGS_MODULE=config.settings
       - MEILISEARCH_URL=${MEILISEARCH_URL}
       - MEILISEARCH_API_KEY=${MEILI_MASTER_KEY}
+      - IIIF_INTERNAL_HOST=http://image_server:1024/sipi
     env_file: .env
     volumes:
       - ./storage:/app/storage
@@ -120,6 +121,10 @@ services:
     image: daschswiss/sipi:v5.0.1
     restart: ${RESTART}
     user: "14:50"
+    # SIPI has no internal memory cap and has been OOM-killed while rendering
+    # large images. With a container limit the kernel kills (and compose
+    # restarts) only SIPI, instead of host-wide OOM taking down other services.
+    mem_limit: 2g
     # SIPI's Lua config reads these via os.getenv(): override the stock demo
     # jwt_secret / admin credentials and the production loglevel. Leaving them
     # unset falls back to the vendored demo values (still denied at the nginx
@@ -160,7 +165,7 @@ services:
   redis:
     # Pinned exactly rather than to the floating `8-alpine` tag, which silently
     # walked 8.0 -> 8.8 in place and made deploys non-reproducible.
-    image: redis:8.8.1-alpine
+    image: redis:8.10.1-alpine
     restart: ${RESTART}
     # Require a password (set REDIS_PASSWORD in .env). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
@@ -192,10 +197,24 @@ services:
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - MEILISEARCH_URL=${MEILISEARCH_URL}
       - MEILISEARCH_API_KEY=${MEILI_MASTER_KEY}
-    # Same bind-mounts as `api`: tasks that save uploaded media run on this
-    # worker, and without this mount they write into the container's own
-    # writable layer instead of the host path that `api`/SIPI serve from,
-    # so the saved file 404s everywhere else.
+      # The image-upload ingest task (apps.uploads) ends by requesting a real
+      # tile from SIPI to prove the converted JP2 is servable. IIIF_HOST in
+      # env_file is the BROWSER-facing address, which this container cannot
+      # reach — the worker must talk to SIPI over the internal compose network.
+      #
+      # The `/sipi` segment is REQUIRED and easy to lose: media is mounted at
+      # /sipi/images/sipi while sipi.config.lua sets imgroot=./images with
+      # prefix_as_path, so every identifier this deployment serves is prefixed
+      # `sipi/`. Without it the smoke test 404s on every upload, the ingest task
+      # deletes the JP2 it just converted, and the session fails — verified from
+      # this container: no prefix -> 404, with prefix -> 200. The dev stack in
+      # backend/compose.yaml mounts media at /sipi/images (no prefix), which is
+      # why a dev-stack test cannot catch this.
+      - UPLOADS_SIPI_BASE_URL=http://image_server:1024/sipi
+      # Same bind-mounts as `api`: tasks that save uploaded media run on this
+      # worker, and without this mount they write into the container's own
+      # writable layer instead of the host path that `api`/SIPI serve from,
+      # so the saved file 404s everywhere else.
     volumes:
       - ./storage:/app/storage
       - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media

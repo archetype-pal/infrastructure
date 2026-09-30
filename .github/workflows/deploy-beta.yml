@@ -1,0 +1,57 @@
+name: Deploy beta
+
+# Deploys to the beta host (archetype.elghareeb.space) over SSH.
+# - push to main: config in this repo changed; redeploy with the latest images.
+# - schedule: pick up newly published backend/frontend images (no-op if unchanged).
+#   GitHub disables schedules after 60 days without repo activity; re-enable in the Actions tab.
+# - workflow_dispatch: deploy on demand, optionally pinning explicit images (rollback).
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      backend_image:
+        description: "Backend image (default: newest :latest, pinned by digest)"
+        required: false
+      frontend_image:
+        description: "Frontend image (default: newest :elghareeb, pinned by digest)"
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-beta
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Resolve image pins
+        env:
+          BACKEND_INPUT: ${{ inputs.backend_image }}
+          FRONTEND_INPUT: ${{ inputs.frontend_image }}
+        run: |
+          digest() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | jq -r .digest; }
+          backend="${BACKEND_INPUT:-ghcr.io/archetype-pal/backend@$(digest ghcr.io/archetype-pal/backend:latest)}"
+          frontend="${FRONTEND_INPUT:-ghcr.io/archetype-pal/frontend@$(digest ghcr.io/archetype-pal/frontend:elghareeb)}"
+          echo "BACKEND=$backend" >> "$GITHUB_ENV"
+          echo "FRONTEND=$frontend" >> "$GITHUB_ENV"
+
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.BETA_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.BETA_KNOWN_HOSTS }}
+          HOST: ${{ vars.BETA_HOST }}
+          MODE: ${{ github.event_name == 'schedule' && '--if-changed' || '' }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh "root@$HOST" \
+            "git -C /srv/archetype/infrastructure pull --ff-only -q && /srv/archetype/infrastructure/scripts/deploy.sh '$BACKEND' '$FRONTEND' $MODE"
