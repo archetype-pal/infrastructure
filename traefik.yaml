@@ -36,6 +36,35 @@ services:
       - "traefik.http.routers.${NAME_ARCHETYPE_IIIF}.entrypoints=web,websecure"
       - "traefik.http.routers.${NAME_ARCHETYPE_IIIF}.middlewares=hardening@docker"
 
+  # Django only serves MEDIA_URL when DEBUG is on (django.conf.urls.static), so
+  # with DEBUG=False every /media URL routed to api 404s (carousel images,
+  # partner logos, ...). main's nginx serves /media itself; this overlay has no
+  # nginx, so a small static server takes /media/ on the api host instead. Its
+  # rule is longer than the api router's, so Traefik gives it priority.
+  media:
+    image: nginx:1.31-alpine
+    restart: ${RESTART}
+    volumes:
+      # nginx's default server roots at /usr/share/nginx/html, so /media/<path>
+      # maps to <path> in the media bind-mount (same corpus as api and SIPI).
+      - ${MEDIA_HOST_PATH:-./storage/media}:/usr/share/nginx/html/media:ro
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.${NAME_ARCHETYPE_API}-media.rule=Host(`${HOST_ARCHETYPE_API}`) && PathPrefix(`/media/`)"
+      - "traefik.http.routers.${NAME_ARCHETYPE_API}-media.tls.certresolver=myresolver"
+      - "traefik.http.routers.${NAME_ARCHETYPE_API}-media.entrypoints=web,websecure"
+      - "traefik.http.routers.${NAME_ARCHETYPE_API}-media.middlewares=hardening@docker"
+      - "traefik.http.services.${NAME_ARCHETYPE_API}-media.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 networks:
   traefik:
     external: true
