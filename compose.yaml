@@ -86,11 +86,15 @@ services:
       # schema endpoint proves the WSGI app is up and routing; a connection
       # refusal (process not serving) raises URLError and fails the check.
       # urllib raises HTTPError on 4xx/5xx, so swallow it via contextlib.suppress.
+      # Send X-Forwarded-Proto: https as the edge proxy does: with
+      # SECURE_SSL_REDIRECT on, a bare http probe gets a 301 to https://127.0.0.1:80,
+      # urllib follows it, speaks TLS to plain-HTTP uvicorn ("Invalid HTTP request
+      # received") and fails with URLError, leaving the container unhealthy.
       test:
         - "CMD"
         - "python"
         - "-c"
-        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen('http://127.0.0.1:80/api/v1/schema/', timeout=5)\")"
+        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:80/api/v1/schema/', headers={'X-Forwarded-Proto': 'https'}), timeout=5)\")"
       interval: 30s
       timeout: 10s
       retries: 3
