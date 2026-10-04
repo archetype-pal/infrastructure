@@ -127,3 +127,7 @@ Run the following command
 ```
 to see a real-time view of the logs across all services. `just ps` shows which
 services are up.
+
+## License
+
+Licensed under the [GNU Affero General Public License v3.0](LICENSE).
