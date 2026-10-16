@@ -87,6 +87,11 @@ Gotchas found while building this host:
   mount instead. Without that, the home-page carousel images 404.
 - `SECURE_SSL_REDIRECT=False`: public traffic is always HTTPS at the edge, and
   the frontend's server-side calls to `http://api` must not be redirected.
+- Django's throttles must see the visitor's IP, not a header the visitor wrote.
+  nginx passes Cloudflare's `CF-Connecting-IP` as a one-entry
+  `X-Forwarded-For`, and compose sets `DRF_NUM_PROXIES=1` to read it. Without
+  that, DRF keys `LoginThrottle` on the whole header, and a forged value per
+  attempt dodges the login rate limit.
 
 ## Environment keys
 
