@@ -66,6 +66,14 @@ services:
       # to a guessed size. Same `/sipi` prefix rule as UPLOADS_SIPI_BASE_URL on
       # the celery service below.
       IIIF_INTERNAL_HOST: http://image_server:1024/sipi
+      # Proxies that append to X-Forwarded-For between the visitor and Django:
+      # nginx alone (nginx.conf), or Cloudflare + nginx, which nginx.tunnel.conf
+      # collapses to one entry. Unset, DRF keys LoginThrottle on the whole
+      # header, which the client writes, so the throttle can be dodged.
+      # Raise it only for an extra appending proxy in front (e.g. Cloudflare's
+      # orange cloud over the direct nginx.conf stack). Override it in .env:
+      # this `environment:` value beats anything set in env_file.
+      DRF_NUM_PROXIES: ${DRF_NUM_PROXIES:-1}
     env_file: env_file
     volumes:
       - ./storage:/app/storage
