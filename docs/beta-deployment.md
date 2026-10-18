@@ -97,7 +97,9 @@ Gotchas found while building this host:
 
 `.env`: `COMPOSE_FILE`, `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `MEDIA_HOST_PATH`,
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `MEILI_ENV`,
-`REDIS_PASSWORD`, `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_CREDENTIALS_FILE`.
+`REDIS_PASSWORD`, `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_CREDENTIALS_FILE`, and
+optionally `DRF_NUM_PROXIES` (defaults to 1; set it here, as compose's
+`environment:` value overrides `env_file`).
 
 `env_file`: everything in `env_file.example`, plus `CELERY_BROKER_URL`,
 `CELERY_RESULT_BACKEND`, `CACHE_URL`, `SECURE_SSL_REDIRECT=False` and
