@@ -1,4 +1,4 @@
-# Beta deployment (archetype.elghareeb.space)
+# Beta deployment (beta.archetype-pal.ink)
 
 A single Hetzner CX33 (4 vCPU, 8 GB, Ubuntu) runs the full stack behind a
 Cloudflare Tunnel. No web ports are open; SSH is the only inbound service.
@@ -27,7 +27,7 @@ Docker-published ports bypass ufw, so publishing one would expose the stack.
 
 - **push to main**: redeploy with this repo's latest config.
 - **every 15 minutes**: deploy newly published `backend:latest` /
-  `frontend:elghareeb` images; a no-op when the digests are unchanged.
+  `frontend:beta` images; a no-op when the digests are unchanged.
 - **manual run**: optionally pass explicit images, which is also how to roll back.
 
 `deploy.sh` pulls, restarts, migrates, collects static, then smoke-tests
@@ -41,7 +41,7 @@ GitHub disables scheduled workflows after 60 days without repository
 activity. Re-enable the workflow in the Actions tab if image deploys stop.
 
 The frontend inlines `NEXT_PUBLIC_*` at build time, so this domain has its own
-image: the `elghareeb` build in the frontend repo's `cd.yml`.
+image: the `beta` build in the frontend repo's `cd.yml`.
 
 ## Rebuilding the host from scratch
 
@@ -56,7 +56,11 @@ image: the `elghareeb` build in the frontend repo's `cd.yml`.
    `docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --role="$POSTGRES_USER"' < dump`
 7. `docker compose up -d --wait`, then `just migrate`, `just collectstatic`,
    `just setup-upload-storage`, `just reindex`.
-8. `cloudflared tunnel route dns --overwrite-dns <name> archetype.elghareeb.space`
+8. `cloudflared tunnel route dns --overwrite-dns <name> beta.archetype-pal.ink`.
+   The `cert.pem` from `cloudflared tunnel login` is scoped to the zone picked
+   at login; one for another zone silently creates
+   `beta.archetype-pal.ink.<that zone>` instead. Adding a proxied CNAME to
+   `<tunnel id>.cfargotunnel.com` in the dashboard does the same job.
 
 Gotchas found while building this host:
 
@@ -83,12 +87,19 @@ Gotchas found while building this host:
   mount instead. Without that, the home-page carousel images 404.
 - `SECURE_SSL_REDIRECT=False`: public traffic is always HTTPS at the edge, and
   the frontend's server-side calls to `http://api` must not be redirected.
+- Django's throttles must see the visitor's IP, not a header the visitor wrote.
+  nginx passes Cloudflare's `CF-Connecting-IP` as a one-entry
+  `X-Forwarded-For`, and compose sets `DRF_NUM_PROXIES=1` to read it. Without
+  that, DRF keys `LoginThrottle` on the whole header, and a forged value per
+  attempt dodges the login rate limit.
 
 ## Environment keys
 
 `.env`: `COMPOSE_FILE`, `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `MEDIA_HOST_PATH`,
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `MEILI_ENV`,
-`REDIS_PASSWORD`, `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_CREDENTIALS_FILE`.
+`REDIS_PASSWORD`, `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_CREDENTIALS_FILE`, and
+optionally `DRF_NUM_PROXIES` (defaults to 1; set it here, as compose's
+`environment:` value overrides `env_file`).
 
 `env_file`: everything in `env_file.example`, plus `CELERY_BROKER_URL`,
 `CELERY_RESULT_BACKEND`, `CACHE_URL`, `SECURE_SSL_REDIRECT=False` and

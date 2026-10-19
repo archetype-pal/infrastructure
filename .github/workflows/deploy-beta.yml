@@ -1,6 +1,6 @@
 name: Deploy beta
 
-# Deploys to the beta host (archetype.elghareeb.space) over SSH.
+# Deploys to the beta host (beta.archetype-pal.ink) over SSH.
 # - push to main: config in this repo changed; redeploy with the latest images.
 # - schedule: pick up newly published backend/frontend images (no-op if unchanged).
 #   GitHub disables schedules after 60 days without repo activity; re-enable in the Actions tab.
@@ -16,7 +16,7 @@ on:
         description: "Backend image (default: newest :latest, pinned by digest)"
         required: false
       frontend_image:
-        description: "Frontend image (default: newest :elghareeb, pinned by digest)"
+        description: "Frontend image (default: newest :beta, pinned by digest)"
         required: false
 
 permissions:
@@ -38,7 +38,7 @@ jobs:
         run: |
           digest() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | jq -r .digest; }
           backend="${BACKEND_INPUT:-ghcr.io/archetype-pal/backend@$(digest ghcr.io/archetype-pal/backend:latest)}"
-          frontend="${FRONTEND_INPUT:-ghcr.io/archetype-pal/frontend@$(digest ghcr.io/archetype-pal/frontend:elghareeb)}"
+          frontend="${FRONTEND_INPUT:-ghcr.io/archetype-pal/frontend@$(digest ghcr.io/archetype-pal/frontend:beta)}"
           echo "BACKEND=$backend" >> "$GITHUB_ENV"
           echo "FRONTEND=$frontend" >> "$GITHUB_ENV"
 

@@ -60,6 +60,12 @@ services:
       - MEILISEARCH_URL=${MEILISEARCH_URL}
       - MEILISEARCH_API_KEY=${MEILI_MASTER_KEY}
       - IIIF_INTERNAL_HOST=http://image_server:1024/sipi
+      # Proxies that append to X-Forwarded-For between the visitor and Django.
+      # Unset, DRF keys LoginThrottle on the whole header, which the client
+      # writes, so the throttle can be dodged. Raise it for each extra appending
+      # proxy in front. Override it in .env: this `environment:` value beats
+      # anything set in env_file.
+      - DRF_NUM_PROXIES=${DRF_NUM_PROXIES:-1}
     env_file: .env
     volumes:
       - ./storage:/app/storage
@@ -88,7 +94,7 @@ services:
         - "CMD"
         - "python"
         - "-c"
-        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen(urllib.request.Request('http://localhost:80/api/v1/schema/', headers={'X-Forwarded-Proto': 'https'}), timeout=5)\")"
+        - "import urllib.request,urllib.error,contextlib; exec(\"with contextlib.suppress(urllib.error.HTTPError): urllib.request.urlopen(urllib.request.Request('http://127.0.0.1:80/api/v1/schema/', headers={'X-Forwarded-Proto': 'https'}), timeout=5)\")"
       interval: 30s
       timeout: 10s
       retries: 3

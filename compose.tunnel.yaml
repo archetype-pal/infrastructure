@@ -5,9 +5,12 @@
 # Differences from the direct-exposure stack:
 #   * nginx serves plain HTTP only (see nginx.tunnel.conf) — Cloudflare
 #     terminates TLS at the edge, so no certs and no 80->443 redirect.
-#   * The HTTP listener is published on ${NGINX_HTTP_PORT:-8090} instead of 80.
-#     cloudflared then routes archetype.elghareeb.space -> http://localhost:8090
-#     via an explicit ingress rule placed ABOVE the `*.elghareeb.space` wildcard.
+#   * The HTTP listener is published on ${NGINX_HTTP_PORT:-8090} instead of 80,
+#     on loopback only: Docker-published ports bypass ufw, and nginx trusts
+#     CF-Connecting-IP, so a port reachable from outside would let anyone forge
+#     their IP past the login throttle. cloudflared on the host then routes the
+#     public hostname -> http://localhost:8090 via an explicit ingress rule
+#     placed ABOVE the zone's wildcard.
 #     Binding host port 80 here would swallow that wildcard and hand every other
 #     subdomain (Coolify's Traefik vhosts) archetype's nginx instead.
 #   * certbot is not used; it stays defined in compose.yaml but is never run.
@@ -15,7 +18,7 @@
 services:
   nginx:
     ports: !override
-      - "${NGINX_HTTP_PORT:-8090}:80"
+      - "127.0.0.1:${NGINX_HTTP_PORT:-8090}:80"
     volumes:
       - ./nginx.tunnel.conf:/etc/nginx/templates/default.conf.template:ro
       - ./html:/var/www/certbot:ro
