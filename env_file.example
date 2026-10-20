@@ -5,7 +5,9 @@ SITE_NAME="Default Archetype"
 # Database
 # Change the username and password for improved security.
 # Keep POSTGRES_DB, POSTGRES_USER, and POSTGRES_PASSWORD aligned with DATABASE_URL.
-POSTGRES_IMAGE=postgres:18.3-bookworm
+# Only scripts/upgrade-postgres-17-to-18.sh reads POSTGRES_IMAGE here; compose
+# takes it from `.env` (default postgres:18.6-bookworm).
+POSTGRES_IMAGE=postgres:18.6-bookworm
 POSTGRES_DB=local
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=password
@@ -14,15 +16,17 @@ DATABASE_URL="postgresql://postgres:password@postgres:5432/local"
 # Search (Meilisearch). Meilisearch is NOT exposed on the host — only the api and
 # celery containers reach it over the internal compose network at
 # http://meilisearch:7700.
-# - PRODUCTION: leave MEILI_ENV at its default (production), set a long random
-#   MEILI_MASTER_KEY (>= 16 bytes), and configure the Django search client to send it.
-# - LOCAL DEV: set MEILI_ENV=development to run without a key.
-MEILI_ENV=development
+# - PRODUCTION: set MEILI_ENV=production in `.env` (compose reads it from there,
+#   not from this file, and defaults to development), set a long random
+#   MEILI_MASTER_KEY (>= 16 bytes) here, and set MEILISEARCH_API_KEY to the same
+#   value so the api and celery containers can authenticate.
+# - LOCAL DEV: leave MEILI_ENV unset to run without a key.
 MEILI_MASTER_KEY=""
+MEILISEARCH_API_KEY=""
 
-# Search auto-sync: Graph/GraphComponent edits push incremental updates to
-# Meilisearch automatically, and MsDescArea edits trigger a full item-parts
-# reindex. Defaults to true (Django's schema default) if unset here.
+# Search auto-sync: every write to a model a search index depends on pushes an
+# incremental update to Meilisearch (an msDesc area edit re-syncs only its item
+# part). Defaults to true (Django's schema default) if unset here.
 # Set SEARCH_AUTO_REINDEX=false to pause all of it — e.g. during a bulk
 # import/migration, or a Meilisearch outage — then run a manual reindex
 # (`just reindex`) once writes settle.
@@ -47,7 +51,9 @@ REDIS_PASSWORD=""
 IIIF_HOST=http://localhost/sipi
 
 # SIPI hardening (read by sipi-config/sipi.config.lua via os.getenv). Set these in
-# production to override the vendored stock-demo defaults. Leaving them unset keeps
+# `.env`, not here: the image_server service has no env_file, so compose passes
+# them through from `.env`. Set them in production to override the vendored
+# stock-demo defaults. Leaving them unset keeps
 # the demo values, which are publicly known; the control/admin routes are also
 # denied at the nginx /sipi proxy as defense-in-depth.
 # SIPI_JWT_SECRET=  # must be exactly 42 characters

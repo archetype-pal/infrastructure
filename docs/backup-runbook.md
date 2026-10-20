@@ -22,13 +22,8 @@ The `pg_backup` service in `infrastructure/compose.yaml`:
 - Retention: 14 days; older dumps are deleted on each run.
 - Partial writes land at `*.sql.gz.partial` so a half-written file is
   never confused with a real backup. On a clean run it's renamed in
-  place.
-
-> **On failure the partial is deleted, not kept.** The service logs
-> `[pg_backup] FAILED — leaving .partial for inspection` and then runs
-> `rm -f "$out.partial"` on the next line, so the message is wrong and no
-> artefact survives. **A failed dump leaves only a log line.** This is a bug in
-> `compose.yaml`, not just in this document — see "Known gap" below.
+  place; on a failed run it is deleted, despite what the log line says
+  (see "Known gap" below), so **a failed dump leaves only a log line.**
 
 Not covered by this runbook (and **not** in the dump):
 
@@ -134,14 +129,10 @@ just sync-all-search-indexes
 The Meilisearch rebuild is required because the indexes will still
 reference rows from the pre-restore state.
 
-> **Step 5 previously read `cd ../api && just sync-all-search-indexes`, which
-> silently rebuilt the wrong stack.** `api/compose.yaml` is a separate
-> dev/CI stack under the compose project `archetype-dev`, with its own
-> containers, network and Meilisearch volume. Running its recipe reindexes the
-> *development* search engine and leaves production's indexes still pointing at
-> pre-restore rows — the exact failure step 5 exists to prevent, and a silent
-> one: the command succeeds. `infrastructure/justfile` has its own
-> `sync-all-search-indexes`; use that.
+> **Do not run the `api/` recipe of the same name.** `api/compose.yaml` is the
+> separate dev/CI stack (compose project `archetype-dev`) with its own
+> Meilisearch; its `just sync-all-search-indexes` succeeds but reindexes that
+> stack and leaves production's indexes pointing at pre-restore rows.
 
 ## Restore — partial (single table)
 
