@@ -1,4 +1,0 @@
-# Public keys allowed to log in to the beta host as root, one per line.
-# The beta-maintenance workflow's authorize-admin-keys task adds any that are
-# missing from /root/.ssh/authorized_keys; it never removes a key.
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBGm78G15VmDgOwI8gJjAZfrrajaIxk/T2njmWk7sn0D EPFL laptop ssh key
