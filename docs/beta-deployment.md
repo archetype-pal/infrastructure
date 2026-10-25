@@ -43,6 +43,10 @@ Actions tab or `gh workflow run beta-maintenance.yml -f task=<task>`:
 
 - `status`: container health, the Python version in api and celery, a Celery ping.
 - `reindex`: `just reindex`, then `status`.
+- `authorize-admin-keys`: add any key in `ssh/beta-admin-keys.pub` that root's
+  `authorized_keys` lacks. It only appends, so revoking a key means deleting it
+  on the host as well as from the file. To give someone SSH access, merge their
+  public key into that file, then run this task.
 
 GitHub disables scheduled workflows after 60 days without repository
 activity. Re-enable the workflow in the Actions tab if image deploys stop.
