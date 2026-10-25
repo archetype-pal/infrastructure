@@ -37,6 +37,13 @@ previous pins in `.env` and restarts on them.
 Secrets: `BETA_SSH_KEY` (a deploy-only key in root's `authorized_keys`) and
 `BETA_KNOWN_HOSTS`; variable `BETA_HOST`.
 
+`.github/workflows/beta-maintenance.yml` runs one fixed task on the host with
+the same deploy key, for when no personal key can log in. Start it from the
+Actions tab or `gh workflow run beta-maintenance.yml -f task=<task>`:
+
+- `status`: container health, the Python version in api and celery, a Celery ping.
+- `reindex`: `just reindex`, then `status`.
+
 GitHub disables scheduled workflows after 60 days without repository
 activity. Re-enable the workflow in the Actions tab if image deploys stop.
 
