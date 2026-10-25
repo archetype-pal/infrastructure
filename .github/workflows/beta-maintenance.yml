@@ -5,6 +5,8 @@ name: Beta maintenance
 # selects a command defined below, it never reaches the shell itself.
 # - status: container health, the Python version in api/celery, a Celery ping.
 # - reindex: `just reindex` (recreate the Meilisearch indexes, then sync them all).
+# - authorize-admin-keys: add any key in ssh/beta-admin-keys.pub that is missing
+#   from root's authorized_keys. It only appends; it never removes a key.
 on:
   workflow_dispatch:
     inputs:
@@ -12,7 +14,7 @@ on:
         description: "Task to run on the beta host"
         required: true
         type: choice
-        options: [status, reindex]
+        options: [status, reindex, authorize-admin-keys]
 
 permissions:
   contents: read
@@ -47,6 +49,16 @@ jobs:
             status) remote="$status" ;;
             # `docker compose run` reads stdin; detach it as deploy.sh does.
             reindex) remote="just reindex </dev/null && $status" ;;
+            # Matches on the key body, so a key already present under another
+            # comment is not added twice. The pull picks up a freshly merged file.
+            authorize-admin-keys) remote='git pull --ff-only -q
+              && install -m 700 -d /root/.ssh && touch /root/.ssh/authorized_keys
+              && chmod 600 /root/.ssh/authorized_keys
+              && { [ -z "$(tail -c1 /root/.ssh/authorized_keys)" ] || echo >> /root/.ssh/authorized_keys; }
+              && grep -v -e "^#" -e "^$" ssh/beta-admin-keys.pub | while read -r type key comment; do
+                if grep -qF " $key" /root/.ssh/authorized_keys; then echo "present: $comment";
+                else echo "$type $key $comment" >> /root/.ssh/authorized_keys; echo "added: $comment"; fi; done
+              && echo "$(grep -c "^ssh-" /root/.ssh/authorized_keys) keys in authorized_keys"' ;;
             *) echo "Unknown task: $TASK" >&2; exit 1 ;;
           esac
           ssh "root@$HOST" "cd /srv/archetype/infrastructure && ${remote//$'\n'/ }"
