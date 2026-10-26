@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Bumps the third-party service images pinned in compose.yaml and
+  # compose.cloudflared.yaml (Meilisearch, Postgres, Redis, nginx, SIPI,
+  # certbot, cloudflared). The ghcr backend/frontend images track :latest and
+  # are released by their own repos, so Dependabot leaves them alone.
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Batch routine minor/patch bumps into one PR instead of one per image.
+    # Major bumps (e.g. Postgres, which needs a dump/restore) are deliberately
+    # left ungrouped so they arrive alone and get reviewed on their own merits.
+    groups:
+      docker-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
