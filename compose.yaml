@@ -123,7 +123,7 @@ services:
       retries: 3
       start_period: 30s
   image_server:
-    image: daschswiss/sipi:v5.0.1
+    image: daschswiss/sipi:v9.1.1
     restart: unless-stopped
     user: "14:50"
     # SIPI has no internal memory cap and has been OOM-killed while rendering
