@@ -77,6 +77,24 @@ docker push geourjoa/archetype-backend:prod-latest
 2. Adjust the project configuration to suit your needs.  
     Create a new file `.env` and fill it with the required variables. A working example can be found [here](.env.prod.sample) or [here](.env.dev.sample).
 
+    Compose substitutes some values into `compose.yaml` itself, and it reads
+    those from a second file, `.env`, never from `env_file`: `POSTGRES_DB`,
+    `POSTGRES_USER`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `MEILI_ENV`,
+    `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `MEDIA_HOST_PATH`, `DRF_NUM_PROXIES` and
+    the `SIPI_*` keys. Set them in `.env` as well (the Postgres ones must match
+    `DATABASE_URL` in `env_file`), or Compose silently uses its defaults:
+    `MEILI_ENV`, for one, defaults to `development`. The
+    [beta deployment](./docs/beta-deployment.md#environment-keys) shows a
+    working split between the two files.
+
+    The frontend image has its public URLs baked in at build time, so use the
+    tag built for your domain (see `.github/workflows/cd.yml` in the frontend
+    repo): `latest` is built for `betaarchetype.gla.ac.uk`, `staging-source`
+    for `archetype.gla.ac.uk`, `ker` for `ker.arts.gla.ac.uk` and `beta` for
+    `beta.archetype-pal.ink`. For any other domain, build the frontend's
+    `Dockerfile` with your own `NEXT_PUBLIC_*` build arguments and set
+    `FRONTEND_IMAGE` to it.
+
     Existing deployments with PostgreSQL 17 data need a one-time database upgrade before starting the normal PostgreSQL 18 stack. Follow [the PostgreSQL 18 upgrade runbook](./docs/postgresql-18-upgrade.md) first.
 
 3. Run the project in the background 
@@ -87,13 +105,22 @@ docker push geourjoa/archetype-backend:prod-latest
     ```bash
     >>> just migrate
     ```
-5. Build the search indexes (creates the Meilisearch schemas and loads documents from the DB)
+5. Collect the static files. Without them, API pages opened in a browser (the
+   browsable API) return a 500.
+    ```bash
+    >>> just collectstatic
+    ```
+6. Build the search indexes (creates the Meilisearch schemas and loads documents from the DB)
     ```bash
     >>> just reindex
     ```
-6. Open the website in your browser by navigating to `http://localhost`
+7. Open `https://<DOMAIN>` in your browser.
 
 > Run `just` (or `just --list`) at any time to see every available command.
+
+The `pg_backup` service dumps the database into `./backups/` once a day. See
+[the backup runbook](./docs/backup-runbook.md) for restores, and for what the
+dump does not cover.
 
 ## Upgrading an existing deployment
 
@@ -101,9 +128,10 @@ The steps above describe a first deployment. To move a running server to a new
 release:
 
 ```bash
->>> just pull      # fetch the new images
+>>> just pull                    # fetch the new images
 >>> just up-bg
 >>> just migrate   # always — a release may add tables or columns
+>>> just collectstatic  
 ```
 
 That is enough for most releases. **A release that adds or changes search
@@ -114,15 +142,10 @@ facets, filters or sort fields additionally needs:**
 ```
 
 Meilisearch applies index *settings* only when they are pushed, so new facets
-stay invisible until this runs — the site keeps working, it simply returns no
+stay invisible until this runs: the site keeps working, it simply returns no
 values for them. Run `just reindex` instead if the shape of the indexed
 documents changed too (it does `setup-search-indexes` then reloads every
-document).
-
-Releases needing that extra step say so in their notes. The July 2026 TEI
-manuscript-descriptions release is one: it adds `material`, `script`,
-`deco_type` and `origin_place` facets to the `item-parts` index, and a
-`manuscripts` migration for the new description tables.
+document). Releases needing that extra step say so in their notes.
 
 
 ## Enable image uploads (backoffice)
@@ -136,11 +159,11 @@ unprivileged `archetype` user, so the target directories need a one-time setup:
 >>> just setup-upload-storage
 ```
 
-Run it on upgrades too, not just first deployments: it now also prepares
-`storage/media/carousel/`, `storage/media/partners/` and
-`storage/media/branding/`. Without it the first carousel, partner or logo
-upload fails with a server error, because the container cannot create those
-directories under a host-owned `storage/media/`.
+It is safe to repeat, so run it on upgrades too. It prepares
+`storage/uploads_tmp/`, `storage/media/uploads/`, `storage/media/carousel/`,
+`storage/media/partners/` and `storage/media/branding/`. Without it the first
+carousel, partner or logo upload fails with a server error, because the
+container cannot create those directories under a host-owned `storage/media/`.
 
 The converted JP2 is the only copy of an uploaded image. Uploads land under
 `MEDIA_HOST_PATH` (default `storage/media/`) — see

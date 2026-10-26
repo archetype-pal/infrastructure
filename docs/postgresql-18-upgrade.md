@@ -1,6 +1,6 @@
 # PostgreSQL 18 Upgrade
 
-This infrastructure stack runs PostgreSQL 18 via `${POSTGRES_IMAGE:-postgres:18.4-bookworm}` (`compose.yaml`). It stays on the *bookworm* base deliberately: the data directory's collation was created against glibc 2.36, and the trixie base (2.41) trips a collation-version mismatch that would force a REINDEX.
+This stack runs PostgreSQL 18 on the Debian *bookworm* base (`POSTGRES_IMAGE`, default set in `compose.yaml`). Stay on bookworm: the data directory's collation was created against glibc 2.36, and the trixie base (2.41) trips a collation-version mismatch that would force a REINDEX.
 
 PostgreSQL major versions cannot reuse an older major-version data directory in place. PostgreSQL 18 Docker images also use versioned `PGDATA` under `/var/lib/postgresql/18/docker`, so this Compose file mounts a new `postgres18` volume at `/var/lib/postgresql`.
 
@@ -8,15 +8,9 @@ The old PostgreSQL 17 volume is intentionally left untouched. If an upgrade fail
 
 ## Fresh Server Setup
 
-For a new installation with no existing PostgreSQL 17 volume:
-
-```bash
-just up-bg
-just migrate
-just postgres-version
-```
-
-`just postgres-version` should report PostgreSQL 18.x.
+A new installation has no PostgreSQL 17 volume and needs nothing from this
+page. After the README's steps, `just postgres-version` should report
+PostgreSQL 18.x.
 
 ## Existing PostgreSQL 17 Deployment
 
@@ -24,7 +18,7 @@ Do not start the normal stack against existing PostgreSQL 17 data. Run the upgra
 
 Before upgrading:
 
-1. Confirm the server's real database name, username, and password from `env_file`.
+1. Confirm the server's real database name, username, and password in `env_file`. The helper reads `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_IMAGE` from the shell or `env_file`, never from `.env`, and exports them to every `docker compose` call it makes, so they override `.env`. Missing credentials fall back to `postgres` / `password`.
 2. Confirm the current volume name. With the default Compose project name it is usually `archetype_postgres`.
 3. Take two backups:
    - provider or filesystem snapshot of the current database volume
@@ -53,7 +47,7 @@ The helper:
 6. Runs `vacuumdb --all --analyze-in-stages`.
 7. Runs Django migrations unless `--skip-migrate` is passed.
 
-Backups are written under `backups/postgres-upgrade/<timestamp>/`.
+Backups are written under `backups/postgres-upgrade/<timestamp>/`. The helper refuses to run if the PostgreSQL 18 volume already holds data, so inspect that volume before retrying.
 
 ## Useful Overrides
 

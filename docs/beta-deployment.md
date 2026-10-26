@@ -37,6 +37,13 @@ previous pins in `.env` and restarts on them.
 Secrets: `BETA_SSH_KEY` (a deploy-only key in root's `authorized_keys`) and
 `BETA_KNOWN_HOSTS`; variable `BETA_HOST`.
 
+`.github/workflows/beta-maintenance.yml` runs one fixed task on the host with
+the same deploy key, for when no personal key can log in. Start it from the
+Actions tab or `gh workflow run beta-maintenance.yml -f task=<task>`:
+
+- `status`: container health, the Python version in api and celery, a Celery ping.
+- `reindex`: `just reindex`, then `status`.
+
 GitHub disables scheduled workflows after 60 days without repository
 activity. Re-enable the workflow in the Actions tab if image deploys stop.
 
@@ -52,8 +59,11 @@ image: the `beta` build in the frontend repo's `cd.yml`.
    `chown 65532:65532` it (the cloudflared image runs as that uid).
 4. Write `env_file` and `.env` (see the keys below) with fresh secrets.
 5. Copy media: `rsync -a --partial media/ root@HOST:/srv/archetype/media/`.
-6. `docker compose up -d --wait postgres meilisearch redis`, then restore a dump:
-   `docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --role="$POSTGRES_USER"' < dump`
+6. `docker compose up -d --wait postgres meilisearch redis`, then restore a
+   custom-format (`pg_dump -Fc`) dump:
+   `docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner --role="$POSTGRES_USER"' < dump`.
+   A `pg_backup` dump (`.sql.gz`) is plain SQL and goes through `psql`
+   instead; see [the backup runbook](./backup-runbook.md#restore--full).
 7. `docker compose up -d --wait`, then `just migrate`, `just collectstatic`,
    `just setup-upload-storage`, `just reindex`.
 8. `cloudflared tunnel route dns --overwrite-dns <name> beta.archetype-pal.ink`.
@@ -74,11 +84,10 @@ Gotchas found while building this host:
 - nginx resolves the `api` and `frontend` upstreams once at startup. After any
   command that recreates those containers, restart nginx or it returns 502.
   `scripts/deploy.sh` does this itself.
-- Restore a database whose migration history matches `main`. The dev database
-  used on 2026-09-14 also carried AI-programme branch migrations: 14 migrations
-  main does not have, extra tables, and NOT NULL columns without defaults on
-  `manuscripts_itemimage` and `manuscripts_repository`. Reads work, but inserts
-  into those tables fail, image uploads included.
+- Restore a database whose migration history matches `main`. A dump from a
+  database that ran unmerged branch migrations carries extra tables and NOT
+  NULL columns without defaults: reads work, but inserts into those tables
+  fail, image uploads included.
 - `NEXT_PUBLIC_IIIF_UPSTREAM` is the bare origin, never `…/sipi`. The frontend
   keeps `/sipi` from the API's IIIF URLs when it builds `/iiif-proxy` paths, so
   a `/sipi` upstream doubles the segment and every manuscript image 404s. It is
@@ -98,9 +107,11 @@ Gotchas found while building this host:
 `.env`: `COMPOSE_FILE`, `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `MEDIA_HOST_PATH`,
 `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `MEILI_ENV`,
 `REDIS_PASSWORD`, `CLOUDFLARE_TUNNEL_ID`, `CLOUDFLARE_CREDENTIALS_FILE`, and
-optionally `DRF_NUM_PROXIES` (defaults to 1; set it here, as compose's
-`environment:` value overrides `env_file`).
+optionally `DRF_NUM_PROXIES` (defaults to 1) and the `SIPI_*` hardening keys.
+Compose reads both only from here: its `environment:` values override
+`env_file`, and SIPI gets no `env_file` at all.
 
 `env_file`: everything in `env_file.example`, plus `CELERY_BROKER_URL`,
 `CELERY_RESULT_BACKEND`, `CACHE_URL`, `SECURE_SSL_REDIRECT=False` and
-`INTERNAL_API_URL=http://api`.
+`INTERNAL_API_URL=http://api`. With `MEILI_ENV=production`, also set
+`MEILISEARCH_API_KEY` to the value of `MEILI_MASTER_KEY`.
