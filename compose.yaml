@@ -1,7 +1,7 @@
 name: archetype
 services:
   meilisearch:
-    image: getmeili/meilisearch:v1.50.0
+    image: getmeili/meilisearch:v1.55.0
     restart: unless-stopped
     environment:
       # MEILI_MASTER_KEY and MEILISEARCH_API_KEY live in env_file and must match.
@@ -217,7 +217,7 @@ services:
   redis:
     # Pinned exactly rather than to the floating `8-alpine` tag, which silently
     # walked 8.0 -> 8.8 in place and made deploys non-reproducible.
-    image: redis:8.10.1-alpine
+    image: redis:8.10.2-alpine
     restart: unless-stopped
     # Require a password (set REDIS_PASSWORD in env_file). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
