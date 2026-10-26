@@ -52,11 +52,14 @@ IIIF_HOST=http://localhost/sipi
 
 # SIPI hardening (read by sipi-config/sipi.config.lua via os.getenv). Set these in
 # `.env`, not here: the image_server service has no env_file, so compose passes
-# them through from `.env`. Set them in production to override the vendored
-# stock-demo defaults. Leaving them unset keeps
-# the demo values, which are publicly known; the control/admin routes are also
-# denied at the nginx /sipi proxy as defense-in-depth.
-# SIPI_JWT_SECRET=  # exactly 42 characters; unset = random per-boot secret (see docs/sipi.md)
+# them through from `.env`. See docs/sipi.md.
+# - SIPI_JWT_SECRET: exactly 42 characters, e.g. `openssl rand -hex 21`. SIPI v10
+#   refuses to start on an empty/short/stock-demo secret; if this is unset the
+#   config falls back to a random per-boot secret (nothing here uses SIPI JWTs).
+# - SIPI_ADMIN_USER / SIPI_ADMIN_PASSWORD: inert since SIPI v7 (the Lua runtime
+#   dropped config.adminuser/password); kept only for rollback to older tags.
+# SIPI's control/admin routes are also denied at the nginx /sipi proxy.
+# SIPI_JWT_SECRET=
 # SIPI_ADMIN_USER=
 # SIPI_ADMIN_PASSWORD=
 # SIPI_LOGLEVEL=WARNING  # set DEBUG only for local debugging
