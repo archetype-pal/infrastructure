@@ -81,6 +81,9 @@ CORS_ALLOWED_ORIGINS=http://localhost
 # CSRF origins are your django admin http/https + domains for your frontend and backend.
 CSRF_TRUSTED_ORIGINS=http://localhost
 
+# Public website address, used for links in emails the backend sends.
+FRONTEND_URL=http://localhost
+
 ## FTP server is used to upload images to the server
 FTP_USER=archetype_user
 FTP_PASS=password
