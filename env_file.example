@@ -56,7 +56,7 @@ IIIF_HOST=http://localhost/sipi
 # stock-demo defaults. Leaving them unset keeps
 # the demo values, which are publicly known; the control/admin routes are also
 # denied at the nginx /sipi proxy as defense-in-depth.
-# SIPI_JWT_SECRET=  # must be exactly 42 characters
+# SIPI_JWT_SECRET=  # exactly 42 characters; unset = random per-boot secret (see docs/sipi.md)
 # SIPI_ADMIN_USER=
 # SIPI_ADMIN_PASSWORD=
 # SIPI_LOGLEVEL=WARNING  # set DEBUG only for local debugging
