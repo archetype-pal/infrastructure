@@ -11,7 +11,8 @@ services:
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
       # refuse to start. No-op when versions already match. Safe — no embedders.
-      - MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE=true
+      # Meilisearch 1.55 ignores the old MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE name.
+      - MEILI_UPGRADE_DB=true
     env_file: env_file
     # No host `ports:` — Meilisearch is reachable only over the internal compose
     # network (the api/celery containers use http://meilisearch:7700). Exposing
