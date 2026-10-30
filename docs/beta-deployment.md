@@ -26,8 +26,16 @@ Docker-published ports bypass ufw, so publishing one would expose the stack.
 `scripts/deploy.sh` with image pins resolved to digests:
 
 - **push to main**: redeploy with this repo's latest config.
-- **every 15 minutes**: deploy newly published `backend:latest` /
-  `frontend:beta` images; a no-op when the digests are unchanged.
+- **image published**: the backend and frontend CD workflows send a
+  `repository_dispatch` (`image-published`) as soon as they have pushed
+  `backend:latest` / `frontend:beta`; the deploy is a no-op when the digests
+  are unchanged. Each of those repositories holds an `INFRA_DISPATCH_TOKEN`
+  secret: a fine-grained token scoped to this repository with Contents
+  read/write, which is what `repository_dispatch` needs. Without the secret
+  the CD step is skipped and the schedule below picks the image up.
+- **schedule**: the fallback, a cron with its minutes offset from the top of
+  the hour. GitHub runs cron jobs late under load; the history shows runs
+  hours apart, so do not read "every 15 minutes" into it.
 - **manual run**: optionally pass explicit images, which is also how to roll back.
 
 `deploy.sh` pulls, restarts, migrates, collects static, then smoke-tests
