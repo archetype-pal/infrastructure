@@ -5,9 +5,15 @@
 #
 # Run from anywhere on the host; it works in the infrastructure checkout. Image
 # pins live in .env (compose interpolation), so pin by digest for exact rollback.
-# --if-changed exits early when both pins already match (scheduled runs).
+# --if-changed exits early when both pins already match (the poll timer).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# One deploy at a time: the poll timer, a push-triggered run and a manual run
+# must not interleave. A waiter reads the pins only once it holds the lock, so
+# an --if-changed run that queued behind a deploy of the same images is a no-op.
+exec 9>/run/lock/archetype-deploy.lock
+flock -w 1800 9 || { echo "Another deploy is still running after 30 minutes." >&2; exit 1; }
 
 backend="$1"
 frontend="$2"

@@ -1,0 +1,9 @@
+[Unit]
+Description=Deploy newly published Archetype images
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/archetype/infrastructure
+ExecStart=/srv/archetype/infrastructure/scripts/poll-images.sh

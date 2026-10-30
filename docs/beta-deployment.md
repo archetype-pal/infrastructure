@@ -22,21 +22,27 @@ Docker-published ports bypass ufw, so publishing one would expose the stack.
 
 ## Continuous deployment
 
-`.github/workflows/deploy-beta.yml` SSHes to the host and runs
-`scripts/deploy.sh` with image pins resolved to digests:
+New images reach the host without GitHub's help. A systemd timer on the host
+(`host/archetype-poll.timer`, every three minutes) runs
+`scripts/poll-images.sh`, which reads the digests behind `backend:latest` and
+`frontend:beta` from ghcr.io with an anonymous pull token (the packages are
+public) and, when one has changed since the last run, calls `scripts/deploy.sh`
+with both pinned by digest. The last-seen digests live in
+`/var/lib/archetype-poll/seen`, so a manual rollback to an older image stays
+until the next image is published, and a bad image is tried once and rolled
+back. Every deploy takes `/run/lock/archetype-deploy.lock`, so a timer run
+never interleaves with a workflow run.
 
-- **push to main**: redeploy with this repo's latest config.
-- **image published**: the backend and frontend CD workflows send a
-  `repository_dispatch` (`image-published`) as soon as they have pushed
-  `backend:latest` / `frontend:beta`; the deploy is a no-op when the digests
-  are unchanged. Each of those repositories holds an `INFRA_DISPATCH_TOKEN`
-  secret: a fine-grained token scoped to this repository with Contents
-  read/write, which is what `repository_dispatch` needs. Without the secret
-  the CD step is skipped and the schedule below picks the image up.
-- **schedule**: the fallback, a cron with its minutes offset from the top of
-  the hour. GitHub runs cron jobs late under load; the history shows runs
-  hours apart, so do not read "every 15 minutes" into it.
+`.github/workflows/deploy-beta.yml` SSHes to the host and runs
+`scripts/install-poll-timer.sh` (refreshes the timer units) and
+`scripts/deploy.sh`:
+
+- **push to main**: this repo's config changed; redeploy with the current images.
 - **manual run**: optionally pass explicit images, which is also how to roll back.
+
+On the host: `systemctl list-timers archetype-poll.timer` shows the next run,
+`journalctl -u archetype-poll.service` the deploy output. The maintenance
+workflow's `status` task prints both.
 
 `deploy.sh` pulls, restarts, migrates, collects static, then smoke-tests
 through nginx with the public Host header. If any step fails it restores the
@@ -52,8 +58,8 @@ Actions tab or `gh workflow run beta-maintenance.yml -f task=<task>`:
 - `status`: container health, the Python version in api and celery, a Celery ping.
 - `reindex`: `just reindex`, then `status`.
 
-GitHub disables scheduled workflows after 60 days without repository
-activity. Re-enable the workflow in the Actions tab if image deploys stop.
+If image deploys stop, check the timer first (`status` task above); the
+workflow has no schedule to disable.
 
 The frontend inlines `NEXT_PUBLIC_*` at build time, so this domain has its own
 image: the `beta` build in the frontend repo's `cd.yml`.
@@ -73,7 +79,8 @@ image: the `beta` build in the frontend repo's `cd.yml`.
    A `pg_backup` dump (`.sql.gz`) is plain SQL and goes through `psql`
    instead; see [the backup runbook](./backup-runbook.md#restore--full).
 7. `docker compose up -d --wait`, then `just migrate`, `just collectstatic`,
-   `just setup-upload-storage`, `just reindex`.
+   `just setup-upload-storage`, `just reindex`, and
+   `scripts/install-poll-timer.sh` (the first workflow deploy also installs it).
 8. `cloudflared tunnel route dns --overwrite-dns <name> beta.archetype-pal.ink`.
    The `cert.pem` from `cloudflared tunnel login` is scoped to the zone picked
    at login; one for another zone silently creates
