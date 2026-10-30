@@ -3,7 +3,8 @@ name: Beta maintenance
 # Runs one fixed maintenance task on the beta host over the deploy key, for when
 # no personal key can log in. The task list is closed on purpose: the input only
 # selects a command defined below, it never reaches the shell itself.
-# - status: container health, the Python version in api/celery, a Celery ping.
+# - status: container health, the Python version in api/celery, a Celery ping,
+#   the poll timer's state and its last runs.
 # - reindex: `just reindex` (recreate the Meilisearch indexes, then sync them all).
 on:
   workflow_dispatch:
@@ -42,7 +43,9 @@ jobs:
           status='docker compose ps --format "table {{.Service}}\t{{.Status}}"
             && docker compose exec -T api python --version
             && docker compose exec -T celery python --version
-            && docker compose exec -T celery celery -A config inspect ping'
+            && docker compose exec -T celery celery -A config inspect ping
+            && systemctl list-timers archetype-poll.timer --no-pager
+            && journalctl -u archetype-poll.service -n 20 --no-pager -o cat'
           case "$TASK" in
             status) remote="$status" ;;
             # `docker compose run` reads stdin; detach it as deploy.sh does.
