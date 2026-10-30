@@ -82,6 +82,7 @@ CORS_ALLOWED_ORIGINS=http://localhost
 CSRF_TRUSTED_ORIGINS=http://localhost
 
 # Public website address, used for links in emails the backend sends.
+# Optional: when unset, the backend uses the first CORS_ALLOWED_ORIGINS entry.
 FRONTEND_URL=http://localhost
 
 ## FTP server is used to upload images to the server
