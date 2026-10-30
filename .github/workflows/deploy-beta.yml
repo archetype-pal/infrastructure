@@ -2,14 +2,22 @@ name: Deploy beta
 
 # Deploys to the beta host (beta.archetype-pal.ink) over SSH.
 # - push to main: config in this repo changed; redeploy with the latest images.
-# - schedule: pick up newly published backend/frontend images (no-op if unchanged).
-#   GitHub disables schedules after 60 days without repo activity; re-enable in the Actions tab.
+# - repository_dispatch (image-published): the backend and frontend CD workflows
+#   send this right after they push an image (they need an INFRA_DISPATCH_TOKEN
+#   secret with contents:write on this repo). No-op if the pins are unchanged.
+# - schedule: the fallback for an image published without a dispatch. GitHub
+#   runs cron jobs late during busy periods, and the top of the hour is the
+#   busiest, so the minutes are offset; expect runs hours apart, not every 15
+#   minutes. GitHub disables schedules after 60 days without repo activity;
+#   re-enable in the Actions tab.
 # - workflow_dispatch: deploy on demand, optionally pinning explicit images (rollback).
 on:
   push:
     branches: [main]
+  repository_dispatch:
+    types: [image-published]
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       backend_image:
@@ -47,7 +55,7 @@ jobs:
           SSH_KEY: ${{ secrets.BETA_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.BETA_KNOWN_HOSTS }}
           HOST: ${{ vars.BETA_HOST }}
-          MODE: ${{ github.event_name == 'schedule' && '--if-changed' || '' }}
+          MODE: ${{ (github.event_name == 'schedule' || github.event_name == 'repository_dispatch') && '--if-changed' || '' }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
