@@ -74,6 +74,11 @@ image: the `beta` build in the frontend repo's `cd.yml`.
 
 Gotchas found while building this host:
 
+- `scripts/deploy.sh` runs `just migrate`, `just collectstatic` and
+  `just setup-search-indexes` after every image bump. The last applies index
+  settings only; a backend change to a document builder still needs
+  `just reindex` once both `api` and `celery` run the new image (the backend's
+  `docs/search-operations.md` says which).
 - `docker compose run` (used by `just migrate`, `just reindex`, …) reads stdin.
   When driving the host with `ssh HOST 'bash -s' < script`, add `</dev/null` to
   each recipe call or the first one swallows the rest of the script.

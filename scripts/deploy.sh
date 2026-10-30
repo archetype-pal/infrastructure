@@ -53,6 +53,10 @@ deploy() {
     # caller's piped input (ssh 'bash -s' < script) is not swallowed.
     just migrate </dev/null
     just collectstatic </dev/null
+    # Apply the search index settings (filterable/sortable attributes) so a
+    # facet the new image adds never 400s. Idempotent, seconds, no reindex:
+    # a document-shape change still needs `just reindex` by hand.
+    just setup-search-indexes </dev/null
     smoke
 }
 
