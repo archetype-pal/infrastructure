@@ -67,7 +67,17 @@ deploy() {
 }
 
 echo "Deploying backend=$backend frontend=$frontend"
-if deploy "$backend" "$frontend"; then
+# Bash ignores `set -e` inside a function called as an `if` or `||` condition,
+# so a failed migration would carry on to "Deploy OK". Run the steps in a
+# subshell with errexit on instead, and read its status afterwards.
+set +e
+(
+    set -e
+    deploy "$backend" "$frontend"
+)
+status=$?
+set -e
+if [ "$status" -eq 0 ]; then
     docker image prune -f >/dev/null
     echo "Deploy OK."
     exit 0
