@@ -27,10 +27,10 @@ MEILISEARCH_API_KEY=""
 # Search auto-sync: every write to a model a search index depends on pushes an
 # incremental update to Meilisearch (an msDesc area edit re-syncs only its item
 # part). Defaults to true (Django's schema default) if unset here.
-# Set SEARCH_AUTO_REINDEX=false to pause all of it — e.g. during a bulk
+# Set SEARCH_AUTO_SYNC=false to pause all of it — e.g. during a bulk
 # import/migration, or a Meilisearch outage — then run a manual reindex
 # (`just reindex`) once writes settle.
-SEARCH_AUTO_REINDEX=true
+SEARCH_AUTO_SYNC=true
 
 # Redis. In production set a password (the redis container runs --requirepass).
 # Redis is not exposed on the host. The api/celery containers must include the
