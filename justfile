@@ -174,7 +174,7 @@ setup-upload-storage:
 
 # Take a one-off gzipped pg_dump into ./backups/ (see docs/backup-runbook.md)
 backup:
-    docker compose run --rm pg_backup sh -c 'pg_dump "$DATABASE_URL" | gzip > /backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz'
+    docker compose run --rm pg_backup sh -c 'set -eu -o pipefail; out=/backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz; pg_dump "$DATABASE_URL" | gzip > "$out.partial"; mv "$out.partial" "$out"; echo "$out"'
 
 # Print the running PostgreSQL server version
 postgres-version:

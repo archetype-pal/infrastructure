@@ -305,7 +305,9 @@ services:
       - sh
       - -c
       - |
-        set -eu
+        # pipefail: without it the pipeline's status is gzip's, so a failed
+        # pg_dump would be renamed and logged as a good dump.
+        set -eu -o pipefail
         sleep 60
         mkdir -p /backups
         while true; do
@@ -316,10 +318,11 @@ services:
             mv "$$out.partial" "$$out"
             echo "[pg_backup] OK $$(wc -c < "$$out") bytes"
           else
-            echo "[pg_backup] FAILED — leaving .partial for inspection" >&2
-            rm -f "$$out.partial" || true
+            echo "[pg_backup] FAILED — leaving $$out.partial for inspection" >&2
           fi
-          find /backups -name 'local-*.sql.gz' -mtime +14 -delete
+          # Failed partials age out with the dumps, so a sidecar that keeps
+          # failing holds about two weeks of them, not an ever-growing pile.
+          find /backups -name 'local-*.sql.gz*' -mtime +14 -delete
           sleep 86400
         done
     volumes:
