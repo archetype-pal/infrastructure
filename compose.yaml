@@ -10,7 +10,10 @@ services:
       - MEILI_ENV=${MEILI_ENV:-development}
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
-      # refuse to start. No-op when versions already match. Safe — no embedders.
+      # refuse to start. No-op when versions already match. Safe: the only
+      # embedder, `glyph` on the graphs index (AI programme branch only), holds
+      # copies of vectors kept in Postgres and calls no model, and
+      # `just sync-search-index graphs` rebuilds it.
       # Meilisearch 1.55 ignores the old MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE name.
       - MEILI_UPGRADE_DB=true
     env_file: env_file
