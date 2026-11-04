@@ -298,6 +298,22 @@ services:
   #
   # See infrastructure/docs/backup-runbook.md for restore steps and the
   # off-site copy policy.
+  embedder:
+    # The self-hosted glyph encoder behind "letters like this" (AI programme
+    # W1.2): the vision encoder of a TrOCR trained on medieval Latin, weights
+    # pinned and baked in, run on CPU with the Hub switched off. Only a build of
+    # the AI programme branch (archetype-pal/backend#202) calls it, so it is
+    # opt-in: `docker compose --profile ml up -d embedder`, then
+    # ML_EMBEDDER_URL=http://embedder:8080 in env_file. No workflow publishes its
+    # image, so it is built here from that branch at a pinned commit; building
+    # downloads torch and the weights (about 1.5 GB). It publishes no port: the
+    # api and celery containers reach it over this network, and no glyph crop
+    # leaves the host.
+    profiles: ["ml"]
+    image: ${EMBEDDER_IMAGE:-archetype-embedder:cea0052}
+    build: https://github.com/archetype-pal/backend.git#cea0052a8690de797307c9c881145152218d6b00:embedder
+    restart: unless-stopped
+
   pg_backup:
     image: postgres:18-alpine
     env_file: env_file
