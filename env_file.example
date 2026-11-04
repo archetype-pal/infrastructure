@@ -149,6 +149,10 @@ ML_OPENROUTER_API_KEY=
 # Anthropic, called directly. Its SDK reads the key from this variable.
 # ANTHROPIC_API_KEY=
 # ML_CLAUDE_MODEL=claude-opus-5
+# The self-hosted glyph encoder (the `embedder` service, profile `ml`). Set it
+# once that service runs; while empty, `embed_glyphs` cannot make vectors and
+# "letters like this" finds only glyphs embedded before.
+# ML_EMBEDDER_URL=http://embedder:8080
 # The public agent: how often one visitor may ask, and how long it may work on
 # one question. nginx gives /api/v1/ 60 seconds (`proxy_read_timeout` in
 # nginx.conf and nginx.tunnel.conf), so keep the deadline below that and raise
