@@ -329,6 +329,34 @@ services:
     build: https://github.com/archetype-pal/backend.git#630df7598b282636795c72164e75a25d9dc83bb4:htr
     restart: unless-stopped
 
+  learn_prune:
+    # Deletes the palaeography tutor's lessons (AI programme W4.4) older than
+    # LEARN_RETENTION_DAYS, with the pictures they hold under storage/learn/,
+    # and closes lessons no worker will finish. Once a day, in-process like
+    # pg_backup below. Only a build of the AI programme branch
+    # (archetype-pal/backend#202) has the command, so it is opt-in with the
+    # tutor: `docker compose --profile learn up -d learn_prune`.
+    profiles: ["learn"]
+    image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
+    env_file: env_file
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+    command:
+      - sh
+      - -c
+      - |
+        sleep 60
+        while true; do
+          python manage.py prune_tutor_sessions || echo "[learn_prune] FAILED" >&2
+          sleep 86400
+        done
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Periodic logical backup of the application database. Runs in-process
   # (no host cron / no Kubernetes CronJob assumed) and writes compressed
   # dumps to a host-mounted `./backups/` directory so operators can pull
