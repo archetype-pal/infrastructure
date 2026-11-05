@@ -162,6 +162,25 @@ ML_OPENROUTER_API_KEY=
 # both together.
 # DRF_THROTTLE_AGENT_RATE=10/hour
 # AGENT_DEADLINE_SECONDS=50
+# The palaeography tutor (/learn on the site). It calls Anthropic directly, so
+# it needs ANTHROPIC_API_KEY above as well as both switches. A lesson runs on
+# the celery worker for a few minutes, a turn at a time.
+# LEARN_TUTOR_MODEL=claude-fable-5-1
+# LEARN_TUTOR_EFFORT=high
+# Who may bring a picture of their own: signed-in, anyone or nobody. Corpus
+# pages are open to everyone. A picture is kept on this host and sent to
+# Anthropic to write its lesson.
+# LEARN_UPLOADS=signed-in
+# Lessons one visitor may start a day, and questions one lesson takes.
+# LEARN_DAILY_SESSIONS=10
+# LEARN_QUESTIONS_PER_SESSION=20
+# DRF_THROTTLE_LEARN_RATE=30/hour
+# Days a lesson and its pictures are kept; the learn_prune service deletes
+# them after that. The pictures are kept under storage/learn/, which nginx
+# and the image server do not serve.
+# LEARN_RETENTION_DAYS=30
+# Seconds a lesson or an answer may run on the worker before it gives up.
+# LEARN_TIME_LIMIT=1800
 
 # --------------------------- FRONTEND CONFIGURATION ---------------------------
 NEXT_PUBLIC_API_URL=http://localhost
