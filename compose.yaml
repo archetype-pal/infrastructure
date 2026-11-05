@@ -252,6 +252,12 @@ services:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - MEILISEARCH_URL=http://meilisearch:7700
+      # The image server as this worker reaches it, as on the api service. The
+      # palaeography tutor (AI programme W4.4) writes its lessons on this
+      # worker and fetches pages and glyph crops here; unset, it falls back to
+      # IIIF_HOST, the browser's address, which from this container hairpins
+      # or fails.
+      - IIIF_INTERNAL_HOST=http://image_server:1024/sipi
       # The image-upload ingest task (apps.uploads) ends by requesting a real
       # tile from SIPI to prove the converted JP2 is servable. IIIF_HOST in
       # env_file is the BROWSER-facing address, which this container cannot
