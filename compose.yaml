@@ -317,6 +317,22 @@ services:
     build: https://github.com/archetype-pal/backend.git#cea0052a8690de797307c9c881145152218d6b00:embedder
     restart: unless-stopped
 
+  htr:
+    # The self-hosted reader behind `htr_baseline --provider kraken` (AI
+    # programme W1.4): Kraken finds a page's lines and CATMuS Medieval reads
+    # them, the model pinned by its SHA-256 and baked in, run on CPU. Only a
+    # build of the AI programme branch (archetype-pal/backend#202) calls it, so
+    # it is opt-in: `docker compose --profile ml up -d htr`, then
+    # ML_HTR_URL=http://htr:8080 in env_file. No workflow publishes its image,
+    # so it is built here from that branch at a pinned commit; the image is
+    # about 1.9 GB, most of it torch and Kraken. Reading a page peaks at about
+    # 3.3 GB of memory. It publishes no port: the api and celery containers
+    # reach it over this network, and no page leaves the host.
+    profiles: ["ml"]
+    image: ${HTR_IMAGE:-archetype-htr:630df75}
+    build: https://github.com/archetype-pal/backend.git#630df7598b282636795c72164e75a25d9dc83bb4:htr
+    restart: unless-stopped
+
   pg_backup:
     image: postgres:18-alpine
     env_file: env_file
