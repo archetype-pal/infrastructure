@@ -291,16 +291,6 @@ services:
       retries: 3
       start_period: 30s
 
-  # Periodic logical backup of the application database. Runs in-process
-  # (no host cron / no Kubernetes CronJob assumed) and writes compressed
-  # dumps to a host-mounted `./backups/` directory so operators can pull
-  # them off the box without entering the container.
-  #
-  # Retention: 14 days. Schedule: once every 24h after a one-minute warm-up
-  # so a stack restart doesn't immediately re-dump.
-  #
-  # See infrastructure/docs/backup-runbook.md for restore steps and the
-  # off-site copy policy.
   embedder:
     # The self-hosted glyph encoder behind "letters like this" (AI programme
     # W1.2): the vision encoder of a TrOCR trained on medieval Latin, weights
@@ -333,6 +323,16 @@ services:
     build: https://github.com/archetype-pal/backend.git#630df7598b282636795c72164e75a25d9dc83bb4:htr
     restart: unless-stopped
 
+  # Periodic logical backup of the application database. Runs in-process
+  # (no host cron / no Kubernetes CronJob assumed) and writes compressed
+  # dumps to a host-mounted `./backups/` directory so operators can pull
+  # them off the box without entering the container.
+  #
+  # Retention: 14 days. Schedule: once every 24h after a one-minute warm-up
+  # so a stack restart doesn't immediately re-dump.
+  #
+  # See infrastructure/docs/backup-runbook.md for restore steps and the
+  # off-site copy policy.
   pg_backup:
     image: postgres:18-alpine
     env_file: env_file
