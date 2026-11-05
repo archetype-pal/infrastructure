@@ -153,6 +153,9 @@ ML_OPENROUTER_API_KEY=
 # once that service runs; while empty, `embed_glyphs` cannot make vectors and
 # "letters like this" finds only glyphs embedded before.
 # ML_EMBEDDER_URL=http://embedder:8080
+# The self-hosted reader (the `htr` service, profile `ml`). Set it once that
+# service runs; while empty, `htr_baseline --provider kraken` cannot read a page.
+# ML_HTR_URL=http://htr:8080
 # The public agent: how often one visitor may ask, and how long it may work on
 # one question. nginx gives /api/v1/ 60 seconds (`proxy_read_timeout` in
 # nginx.conf and nginx.tunnel.conf), so keep the deadline below that and raise
