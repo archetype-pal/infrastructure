@@ -324,10 +324,24 @@ services:
     # about 1.9 GB, most of it torch and Kraken. Reading a page peaks at about
     # 3.3 GB of memory. It publishes no port: the api and celery containers
     # reach it over this network, and no page leaves the host.
+    #
+    # It also finds a page's letters for `propose_letters` (W1.1), with two
+    # models trained on the corpus's expert boxes. Those are not in the image:
+    # they are read from storage/models/letters if they are there, and without
+    # them only that answers 503. To train them here, on CPU (hours; no page
+    # leaves the host):
+    #   docker compose exec api python manage.py export_glyph_dataset --out storage/releases/<v> --release <v>
+    #   docker compose exec api python manage.py export_letter_pages \
+    #       --release storage/releases/<v> --out storage/letters-pages
+    #   docker compose run --rm -v ./storage:/storage htr python train_letters.py \
+    #       --release /storage/releases/<v> --pages /storage/letters-pages --out /storage/models/letters
+    # then `docker compose restart htr`.
     profiles: ["ml"]
-    image: ${HTR_IMAGE:-archetype-htr:630df75}
-    build: https://github.com/archetype-pal/backend.git#630df7598b282636795c72164e75a25d9dc83bb4:htr
+    image: ${HTR_IMAGE:-archetype-htr:46c841a}
+    build: https://github.com/archetype-pal/backend.git#46c841ab7d432b382ef456beb55a22a93109cf5c:htr
     restart: unless-stopped
+    volumes:
+      - ./storage/models/letters:/models/letters:ro
 
   learn_prune:
     # Deletes the palaeography tutor's lessons (AI programme W4.4) older than
