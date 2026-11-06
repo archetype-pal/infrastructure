@@ -53,7 +53,7 @@ up() {
 deploy() {
     set_pin BACKEND_IMAGE "$1"
     set_pin FRONTEND_IMAGE "$2"
-    docker compose pull --quiet api celery frontend
+    docker compose pull --quiet
     up
     # `docker compose run` inside these recipes reads stdin; detach it so a
     # caller's piped input (ssh 'bash -s' < script) is not swallowed.
