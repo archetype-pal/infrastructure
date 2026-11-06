@@ -147,7 +147,7 @@ ML_DAILY_COST_CAP_MICROS_PER_ACTOR=0
 # OpenRouter, the default hosted provider. The key is a secret: put it in the
 # host's env_file only.
 ML_OPENROUTER_API_KEY=
-# ML_OPENROUTER_MODEL=anthropic/claude-opus-5
+# ML_OPENROUTER_MODEL=anthropic/claude-opus-5.5
 # Keep false: requests go only to upstreams that do not keep prompts for training.
 # ML_OPENROUTER_ALLOW_DATA_COLLECTION=false
 # Comma-separated upstream names, to pin who receives the material. Empty
@@ -155,7 +155,7 @@ ML_OPENROUTER_API_KEY=
 # ML_OPENROUTER_ALLOWED_PROVIDERS=
 # Anthropic, called directly. Its SDK reads the key from this variable.
 # ANTHROPIC_API_KEY=
-# ML_CLAUDE_MODEL=claude-opus-5
+# ML_CLAUDE_MODEL=claude-opus-5-5
 # The self-hosted glyph encoder (the `embedder` service, profile `ml`). Set it
 # once that service runs; while empty, `embed_glyphs` cannot make vectors and
 # "letters like this" finds only glyphs embedded before.
