@@ -143,5 +143,5 @@ of the AI programme branch (backend#202), which beta does not run. Leave
 them out of beta's `env_file`, or at their defaults: both switches false, no
 provider key. The glyph encoder service, `embedder`, and the reader, `htr`,
 are in the `ml` compose profile, and the tutor's daily clean-up,
-`learn_prune`, in the `learn` profile, so beta's `up` neither builds nor
+`learn_prune` and `celery_learn`, in the `learn` profile, so beta's `up` neither builds nor
 starts them.
