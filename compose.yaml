@@ -10,7 +10,10 @@ services:
       - MEILI_ENV=${MEILI_ENV:-development}
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
-      # refuse to start. No-op when versions already match. Safe — no embedders.
+      # refuse to start. No-op when versions already match. Safe: the only
+      # embedder, `glyph` on the graphs index (AI programme branch only), holds
+      # copies of vectors kept in Postgres and calls no model, and
+      # `just sync-search-index graphs` rebuilds it.
       # Meilisearch 1.55 ignores the old MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE name.
       - MEILI_UPGRADE_DB=true
     env_file: env_file
@@ -249,6 +252,12 @@ services:
       - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
       - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
       - MEILISEARCH_URL=http://meilisearch:7700
+      # The image server as this worker reaches it, as on the api service. The
+      # palaeography tutor (AI programme W4.4) writes its lessons on this
+      # worker and fetches pages and glyph crops here; unset, it falls back to
+      # IIIF_HOST, the browser's address, which from this container hairpins
+      # or fails.
+      - IIIF_INTERNAL_HOST=http://image_server:1024/sipi
       # The image-upload ingest task (apps.uploads) ends by requesting a real
       # tile from SIPI to prove the converted JP2 is servable. IIIF_HOST in
       # env_file is the BROWSER-facing address, which this container cannot
@@ -287,6 +296,150 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  celery_learn:
+    # The palaeography tutor's lessons (AI programme W4.4) take minutes each and
+    # anyone may start one, so they have their own queue and this worker, and
+    # cannot hold up search sync or uploads. Only a build of the AI programme
+    # branch (archetype-pal/backend#202) routes tasks here, so it is opt-in with
+    # the tutor: `docker compose --profile learn up -d celery_learn learn_prune`.
+    profiles: ["learn"]
+    image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
+    restart: unless-stopped
+    command: celery -A config worker -l info -Q learn -c 2 -n learn@%h
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    env_file: env_file
+    environment:
+      # Redis now requires a password; include it in the broker/result URLs.
+      - CELERY_BROKER_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - MEILISEARCH_URL=http://meilisearch:7700
+      # The image server as this worker reaches it, as on the api service. The
+      # palaeography tutor (AI programme W4.4) writes its lessons on this
+      # worker and fetches pages and glyph crops here; unset, it falls back to
+      # IIIF_HOST, the browser's address, which from this container hairpins
+      # or fails.
+      - IIIF_INTERNAL_HOST=http://image_server:1024/sipi
+      # The image-upload ingest task (apps.uploads) ends by requesting a real
+      # tile from SIPI to prove the converted JP2 is servable. IIIF_HOST in
+      # env_file is the BROWSER-facing address, which this container cannot
+      # reach — the worker must talk to SIPI over the internal compose network.
+      #
+      # The `/sipi` segment is REQUIRED and easy to lose: media is mounted at
+      # /sipi/images/sipi while sipi.config.lua sets imgroot=./images with
+      # prefix_as_path, so every identifier this deployment serves is prefixed
+      # `sipi/`. Without it the smoke test 404s on every upload, the ingest task
+      # deletes the JP2 it just converted, and the session fails — verified from
+      # this container: no prefix -> 404, with prefix -> 200. The dev stack in
+      # backend/compose.yaml mounts media at /sipi/images (no prefix), which is
+      # why a dev-stack test cannot catch this.
+      - UPLOADS_SIPI_BASE_URL=http://image_server:1024/sipi
+    volumes:
+      # The upload ingest pipeline runs on this worker: it reads chunk files
+      # from storage/uploads_tmp/ and writes the converted JP2 under
+      # storage/media/uploads/. Without this mount every upload fails at the
+      # conversion step.
+      - ./storage:/app/storage
+      # Media must resolve to the SAME host path as api and image_server (both
+      # alias it via MEDIA_HOST_PATH). With only the mount above, a deployment
+      # that points MEDIA_HOST_PATH at an external corpus would have the worker
+      # write into the checkout while api and SIPI read from the corpus — the
+      # upload would succeed and then 404.
+      - ${MEDIA_HOST_PATH:-./storage/media}:/app/storage/media
+    # `inspect ping` is Celery's canonical liveness probe — it round-trips
+    # through the broker and the worker's mingle queue, so a green check
+    # means "worker is consuming tasks", not just "process exists". `-d`
+    # targets THIS container's worker name; `$$HOSTNAME` is escaped so
+    # docker-compose passes a literal `$HOSTNAME` for the shell to expand
+    # inside the container.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  embedder:
+    # The self-hosted glyph encoder behind "letters like this" (AI programme
+    # W1.2): the vision encoder of a TrOCR trained on medieval Latin, weights
+    # pinned and baked in, run on CPU with the Hub switched off. Only a build of
+    # the AI programme branch (archetype-pal/backend#202) calls it, so it is
+    # opt-in: `docker compose --profile ml up -d embedder`, then
+    # ML_EMBEDDER_URL=http://embedder:8080 in env_file. No workflow publishes its
+    # image, so it is built here from that branch at a pinned commit; building
+    # downloads torch and the weights (about 1.5 GB). It publishes no port: the
+    # api and celery containers reach it over this network, and no glyph crop
+    # leaves the host.
+    profiles: ["ml"]
+    image: ${EMBEDDER_IMAGE:-archetype-embedder:cea0052}
+    build: https://github.com/archetype-pal/backend.git#cea0052a8690de797307c9c881145152218d6b00:embedder
+    restart: unless-stopped
+
+  htr:
+    # The self-hosted reader behind `htr_baseline --provider kraken` (AI
+    # programme W1.4): Kraken finds a page's lines and CATMuS Medieval reads
+    # them, the model pinned by its SHA-256 and baked in, run on CPU. Only a
+    # build of the AI programme branch (archetype-pal/backend#202) calls it, so
+    # it is opt-in: `docker compose --profile ml up -d htr`, then
+    # ML_HTR_URL=http://htr:8080 in env_file. No workflow publishes its image,
+    # so it is built here from that branch at a pinned commit; the image is
+    # about 1.9 GB, most of it torch and Kraken. Reading a page peaks at about
+    # 3.3 GB of memory. It publishes no port: the api and celery containers
+    # reach it over this network, and no page leaves the host.
+    #
+    # It also finds a page's letters for `propose_letters` (W1.1), with two
+    # models trained on the corpus's expert boxes. Those are not in the image:
+    # they are read from storage/models/letters if they are there, and without
+    # them only that answers 503. To train them here, on CPU (hours; no page
+    # leaves the host):
+    #   docker compose exec api python manage.py export_glyph_dataset --out storage/releases/<v> --release <v>
+    #   docker compose exec api python manage.py export_letter_pages \
+    #       --release storage/releases/<v> --out storage/letters-pages
+    #   docker compose run --rm -v ./storage:/storage htr python train_letters.py \
+    #       --release /storage/releases/<v> --pages /storage/letters-pages --out /storage/models/letters
+    # then `docker compose restart htr`.
+    profiles: ["ml"]
+    image: ${HTR_IMAGE:-archetype-htr:46c841a}
+    build: https://github.com/archetype-pal/backend.git#46c841ab7d432b382ef456beb55a22a93109cf5c:htr
+    restart: unless-stopped
+    volumes:
+      - ./storage/models/letters:/models/letters:ro
+
+  learn_prune:
+    # Deletes the palaeography tutor's lessons (AI programme W4.4) older than
+    # LEARN_RETENTION_DAYS, with the pictures they hold under storage/learn/,
+    # closes lessons no worker will finish, and closes model calls and page
+    # requests a killed worker left behind. Once an hour, in-process like
+    # pg_backup below. Only a build of the AI programme branch
+    # (archetype-pal/backend#202) has the commands, so it is opt-in:
+    # `docker compose --profile learn up -d learn_prune`, or `--profile ml`.
+    profiles: ["learn", "ml"]
+    image: ${BACKEND_IMAGE:-ghcr.io/archetype-pal/backend:latest}
+    env_file: env_file
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+    command:
+      - sh
+      - -c
+      - |
+        sleep 60
+        while true; do
+          python manage.py prune_tutor_sessions || echo "[learn_prune] FAILED" >&2
+          python manage.py close_abandoned_jobs || echo "[learn_prune] FAILED" >&2
+          sleep 3600
+        done
+    volumes:
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   # Periodic logical backup of the application database. Runs in-process
   # (no host cron / no Kubernetes CronJob assumed) and writes compressed
