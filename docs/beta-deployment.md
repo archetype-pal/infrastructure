@@ -44,8 +44,9 @@ On the host: `systemctl list-timers archetype-poll.timer` shows the next run,
 `journalctl -u archetype-poll.service` the deploy output. The maintenance
 workflow's `status` task prints both.
 
-`deploy.sh` pulls, restarts, migrates, collects static, then smoke-tests
-through nginx with the public Host header. If any step fails it restores the
+`deploy.sh` prunes unused images older than three days, pulls, restarts,
+migrates, collects static, then smoke-tests through nginx with the public Host
+header. If any step fails it restores the
 previous pins in `.env` and restarts on them.
 
 Secrets: `BETA_SSH_KEY` (a deploy-only key in root's `authorized_keys`) and

@@ -53,6 +53,9 @@ up() {
 deploy() {
     set_pin BACKEND_IMAGE "$1"
     set_pin FRONTEND_IMAGE "$2"
+    # Digest-pinned images never count as dangling, so -a. Images still in use,
+    # including the rollback pins, are kept.
+    docker image prune -a -f --filter "until=72h" >/dev/null
     docker compose pull --quiet
     up
     # `docker compose run` inside these recipes reads stdin; detach it so a
@@ -78,7 +81,6 @@ set +e
 status=$?
 set -e
 if [ "$status" -eq 0 ]; then
-    docker image prune -f >/dev/null
     echo "Deploy OK."
     exit 0
 fi
