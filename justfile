@@ -168,7 +168,7 @@ celery_status:
 
 # One-time setup: create the upload storage dirs and chown them to the service user
 setup-upload-storage:
-    docker compose run --rm --no-deps -u root api sh -c 'dirs="/app/storage/uploads_tmp /app/storage/media/uploads /app/storage/media/carousel /app/storage/media/partners /app/storage/media/branding"; mkdir -p $dirs && chown -R archetype:archetype $dirs'
+    docker compose run --rm --no-deps -u root api sh -c 'dirs="/app/storage/uploads_tmp /app/storage/learn /app/storage/media/uploads /app/storage/media/carousel /app/storage/media/partners /app/storage/media/branding"; mkdir -p $dirs && chown -R archetype:archetype $dirs'
 
 # --- Database backup / PostgreSQL --------------------------------------------
 
