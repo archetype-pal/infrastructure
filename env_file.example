@@ -133,9 +133,9 @@ ML_HOSTED_PROVIDERS_ENABLED=false
 # Spend caps over a rolling 24 hours, in millionths of the provider's currency
 # (5000000 = 5.00): one for the whole site, one per signed-in user. Anonymous
 # visitors to the agent count only against the site's cap; DRF_THROTTLE_AGENT_RATE
-# limits them one by one. 0 means no cap, so set both before switching
-# inference on.
-ML_DAILY_COST_CAP_MICROS=0
+# limits them one by one. The site's cap is $10 by default, and hosted providers
+# are refused unless it is above 0. 0 disables the per-person cap.
+ML_DAILY_COST_CAP_MICROS=10000000
 ML_DAILY_COST_CAP_MICROS_PER_ACTOR=0
 # OpenRouter, the default hosted provider. The key is a secret: put it in the
 # host's env_file only.
