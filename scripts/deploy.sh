@@ -53,11 +53,6 @@ up() {
 deploy() {
     set_pin BACKEND_IMAGE "$1"
     set_pin FRONTEND_IMAGE "$2"
-    # Pull every service, not just the app images: upstream rebuilds pinned
-    # tags (postgres:18.6-bookworm, redis:*-alpine, ...) in place with security
-    # fixes, and `up` only pulls images that are missing locally, so those
-    # rebuilds would otherwise never reach the host. `up` then recreates only
-    # the containers whose image actually changed.
     docker compose pull --quiet
     up
     # `docker compose run` inside these recipes reads stdin; detach it so a
