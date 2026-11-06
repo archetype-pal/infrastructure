@@ -142,6 +142,6 @@ The AI programme's keys in `env_file.example` (`ML_*`, `ANTHROPIC_API_KEY`,
 of the AI programme branch (backend#202), which beta does not run. Leave
 them out of beta's `env_file`, or at their defaults: both switches false, no
 provider key. The glyph encoder service, `embedder`, and the reader, `htr`,
-are in the `ml` compose profile, and the tutor's daily clean-up,
-`learn_prune` and `celery_learn`, in the `learn` profile, so beta's `up` neither builds nor
-starts them.
+are in the `ml` compose profile, the tutor's worker, `celery_learn`, in the
+`learn` profile, and the hourly clean-up, `learn_prune`, in both, so beta's
+`up` neither builds nor starts them.
