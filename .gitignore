@@ -11,3 +11,6 @@ certs/*
 
 # Uploaded media / runtime storage
 storage/
+
+# Written by scripts/preview-deploy.sh
+nginx.preview.conf
