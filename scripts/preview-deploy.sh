@@ -58,6 +58,8 @@ deploy() {
     manage setup_search_indexes
     if [ -e storage/.needs-reindex ]; then
         manage sync_all_search_indexes
+        # Ask's identity starts absent and off in any database, and beta has none.
+        manage agent_identity ask-archetype --create --public-tools --enable
         rm storage/.needs-reindex
     fi
     domain="$(grep -E '^DOMAIN=' env_file | tail -n1 | cut -d= -f2-)"
