@@ -52,9 +52,9 @@ followed by `docker compose up -d`. The site-wide cap is $10 a day.
 - **Taking it down:** `docker compose down` in the preview checkout, disable the
   timer, then drop `archetype_ai` and `ai_preview`, and the `ai_*` indexes.
 
-The frontend's first image needs `https://ai.archetype-pal.ink/api/v1/` to answer,
-because static generation fetches it. Until then, start the rest with
-`docker compose up -d ai-api ai-celery ai-nginx ai-cloudflared` and re-run the workflow.
+The frontend's build fetches `https://ai.archetype-pal.ink/api/v1/` for static
+generation and still passes when that does not answer. So publish a new frontend
+image once the preview's API is up: an earlier one may hold empty pages.
 
 If beta recreates `image_server`, run `docker compose restart ai-nginx` here. nginx
 resolves it only at startup.
