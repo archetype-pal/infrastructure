@@ -35,7 +35,18 @@ ALTER ROLE :"role" WITH LOGIN PASSWORD :'password';
 SQL
 sql -c "DROP DATABASE IF EXISTS $target WITH (FORCE)"
 sql -c "CREATE DATABASE $target OWNER $role"
-docker exec "$container" sh -c "pg_dump -Fc -U '$admin' -d '$source_db' | pg_restore -U '$admin' -d '$target' --no-owner --no-privileges --role='$role' --single-transaction --exit-on-error"
+# Extensions need a superuser, and the role restoring the rest is not one.
+docker exec "$container" psql -v ON_ERROR_STOP=1 -q -U "$admin" -d "$source_db" -Atc \
+    "SELECT format('CREATE EXTENSION IF NOT EXISTS %I;', extname) FROM pg_extension WHERE extname <> 'plpgsql'" |
+    docker exec -i "$container" psql -v ON_ERROR_STOP=1 -q -U "$admin" -d "$target"
+docker exec "$container" sh -c "
+    set -e
+    trap 'rm -f /tmp/preview.dump /tmp/preview.list' EXIT
+    pg_dump -Fc -U '$admin' -d '$source_db' -f /tmp/preview.dump
+    pg_restore -l /tmp/preview.dump | grep -v ' EXTENSION ' >/tmp/preview.list
+    pg_restore -U '$admin' -d '$target' --no-owner --no-privileges --role='$role' \\
+        -L /tmp/preview.list --single-transaction --exit-on-error /tmp/preview.dump
+"
 
 rm -f "${PREVIEW_SEEN_FILE:-/var/lib/archetype-poll/seen-preview}"
 touch storage/.needs-reindex
