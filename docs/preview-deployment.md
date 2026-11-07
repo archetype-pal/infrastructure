@@ -18,9 +18,19 @@ nginx and tunnel are not touched.
 The preview's api and workers join beta's network as `ai-*`. Never name a preview
 service as beta names its own: beta's nginx would resolve `api` to both.
 
-Because media is read-only, uploads fail on the preview. Mail is logged and not
-sent. Neither the glyph encoder nor the reader runs here: "Letters like this" and
-page reading stay off until there is memory for them.
+Media is read-only except `uploads/`, so an upload works but a carousel or logo
+image does not, and a new upload sits in the folder beta uses. Mail is logged and
+not sent.
+
+The encoder and the reader are built on the host and capped at 2 CPUs each. The
+letter models are copied to `storage/models/letters`, and must not be published.
+After a fresh copy of the database, embed it again:
+
+```sh
+docker compose run -d --name ai-embed ai-api sh -c 'for e in hog ink trocr; do
+  nice -n 15 python manage.py embed_glyphs --encoder $e || exit 1
+done; python manage.py sync_search_index graphs'
+```
 
 ## Set it up
 
@@ -33,6 +43,7 @@ CNAME `ai` → `<tunnel id>.cfargotunnel.com` in the `archetype-pal.ink` zone:
 git clone -b ai-programme https://github.com/archetype-pal/infrastructure /srv/archetype/preview
 cd /srv/archetype/preview
 CLOUDFLARE_TUNNEL_ID=<tunnel id> scripts/preview-init.sh
+docker compose build ai-embedder ai-htr
 scripts/preview-clone-db.sh
 scripts/preview-deploy.sh
 install -m 644 host/archetype-ai-poll.* /etc/systemd/system/

@@ -63,9 +63,11 @@ ML_INFERENCE_ENABLED=true
 ML_HOSTED_PROVIDERS_ENABLED=true
 ML_AGENT_PROVIDER=claude
 ML_DAILY_COST_CAP_MICROS=10000000
+ML_EMBEDDER_URL=http://ai-embedder:8080
+ML_HTR_URL=http://ai-htr:8080
 ENV
 # The umask above is for the two secret files; the containers must traverse storage.
 umask 022
-mkdir -p storage/staticfiles storage/learn storage/uploads_tmp
+mkdir -p storage/staticfiles storage/learn storage/uploads_tmp storage/models/letters
 chmod 777 storage/staticfiles storage/learn storage/uploads_tmp
 echo "Wrote .env and env_file."

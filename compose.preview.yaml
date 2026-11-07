@@ -18,8 +18,10 @@ x-backend: &backend
   volumes:
     - ./storage:/app/storage
     # Read-only: the files belong to beta. Deleting an image here must not take
-    # beta's copy with it, so uploads fail on the preview.
+    # beta's copy with it. Only new uploads are written, to the folder SIPI serves
+    # them from, so an upload works here but a carousel or logo image does not.
     - ${MEDIA_HOST_PATH:?set MEDIA_HOST_PATH in .env}:/app/storage/media:ro
+    - ${MEDIA_HOST_PATH:?set MEDIA_HOST_PATH in .env}/uploads:/app/storage/media/uploads
 
 x-worker-environment: &worker-environment
   MEILISEARCH_URL: http://meilisearch:7700
@@ -73,6 +75,27 @@ services:
           python manage.py close_abandoned_jobs || echo "[ai-prune] FAILED" >&2
           sleep 3600
         done
+
+  # Letters like this. Self-hosted, and capped so a long embedding run leaves
+  # beta its share of the host. On this stack's own network only: no crop leaves it.
+  ai-embedder:
+    image: ${EMBEDDER_IMAGE:-archetype-embedder:cea0052}
+    build: https://github.com/archetype-pal/backend.git#cea0052a8690de797307c9c881145152218d6b00:embedder
+    restart: unless-stopped
+    mem_limit: 2g
+    cpus: 2
+
+  # Reads pages and finds their letters. A page peaks at about 3.3 GB. The
+  # letter models are not in the image: they live in storage/models/letters,
+  # which nginx does not serve, and must not be published (W0.4).
+  ai-htr:
+    image: ${HTR_IMAGE:-archetype-htr:46c841a}
+    build: https://github.com/archetype-pal/backend.git#46c841ab7d432b382ef456beb55a22a93109cf5c:htr
+    restart: unless-stopped
+    mem_limit: 4g
+    cpus: 2
+    volumes:
+      - ./storage/models/letters:/models/letters:ro
 
   ai-frontend:
     image: ${FRONTEND_IMAGE:-ghcr.io/archetype-pal/frontend:ai-preview}

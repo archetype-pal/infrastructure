@@ -49,7 +49,7 @@ manage() { docker compose run --rm -T ai-api python manage.py "$@" </dev/null; }
 deploy() {
     set_pin BACKEND_IMAGE "$backend"
     set_pin FRONTEND_IMAGE "$frontend"
-    docker compose pull --quiet
+    docker compose pull --quiet --ignore-buildable
     manage migrate --noinput
     docker compose up -d --remove-orphans --wait --wait-timeout 300
     docker compose restart ai-nginx
