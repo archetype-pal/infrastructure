@@ -65,14 +65,18 @@ logs:
 # opened in a BROWSER (Accept: text/html -> the browsable API) returns a hard
 # 500, while the same URL fetched with curl returns 200 JSON. Easy to miss.
 #
-# The api container runs as uid 999, so STATIC_ROOT must be writable by it; the
-# recipe creates it 0777 first because the host ./storage is usually owned by a
-# different uid.
+# The api container runs as the `archetype` user (uid 999), so STATIC_ROOT must
+# be writable by it. The host ./storage is usually owned by some other uid, and
+# the deploying user may not be able to create or chmod anything under it, so
+# the directory is created and chowned as root inside the container (no host
+# sudo needed, whoever owns ./storage).
+#
+# The api workers load the manifest once per process, so restart the api after
+# collectstatic rewrites it, or they keep serving from the stale manifest.
 #
 # Collect static assets into STATIC_ROOT (run after every deploy/image bump)
 collectstatic:
-    mkdir -p storage/staticfiles
-    chmod 777 storage/staticfiles
+    docker compose exec -T -u root api sh -c 'mkdir -p /app/storage/staticfiles && chown -R archetype:archetype /app/storage/staticfiles'
     docker compose exec -T api python manage.py collectstatic --noinput
 
 # Resync every postgres sequence in the public schema to MAX(id) of its owning
