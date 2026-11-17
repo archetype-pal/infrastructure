@@ -32,6 +32,20 @@ local function env_or(key, default)
     return value
 end
 
+-- A random alphanumeric string, used only as the jwt_secret fallback. The
+-- sandbox (SIPI v10+) exposes no os.time, so seed from os.date + os.clock;
+-- Lua 5.4 also self-seeds, older runtimes do not.
+local function random_secret(length)
+    math.randomseed(tonumber(os.date('%Y%m%d%H%M%S')) + math.floor(os.clock() * 1e6))
+    local alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+    local chars = {}
+    for i = 1, length do
+        local n = math.random(#alphabet)
+        chars[i] = alphabet:sub(n, n)
+    end
+    return table.concat(chars)
+end
+
 sipi = {
     --
     -- The user under which the Sipi server should run. Use this only if Sipi should setuid to a particular user after
@@ -141,35 +155,32 @@ sipi = {
     --
     -- path to the caching directory
     --
-    cachedir = './cache',
+    -- Under /tmp, not the image's ./cache: SIPI runs as 14:50 (compose `user:`)
+    -- and /sipi/cache is root-owned 755 in the image, so SIPI could not create
+    -- it and silently ran with caching disabled. /tmp is 1777; the cache lives
+    -- in the container layer and is dropped on recreate, which is fine.
+    --
+    cache_dir = '/tmp/sipi-cache',
 
     --
     -- maximal size of the cache
     -- The cache will be purged if either the maximal size or maximal number
-    -- of files is reached.
+    -- of files is reached; purges evict down to SIPI's built-in 80% low-water
+    -- mark (the old cache_hysteresis key is no longer supported).
     --
     -- The previous 20M / 8-file limit was effectively a "no caching" setting
     -- for a manuscript viewer: a single folio at several zoom levels easily
     -- fills 8 slots, and the 20M ceiling forces a purge after a handful of
     -- requests. The viewer ends up re-tiling on every pan/zoom. The values
     -- below give us a usable working set without unbounded disk growth —
-    -- monitor via `DELETE /api/cache` and SIPI's startup log.
+    -- check SIPI's startup log for "caching disabled".
     --
-    cachesize = '512M',
+    cache_size = '512M',
 
     --
     -- maximal number of files to be cached
-    -- The cache will be purged if either the maximal size or maximal number
-    -- of files is reached.
     --
     cache_nfiles = 4096,
-
-    --
-    -- If the cache becomes full, the given percentage of file space is
-    -- marked for reuse (LRU eviction). 0.20 = reclaim 20% on each purge,
-    -- so the working set settles instead of thrashing at the boundary.
-    --
-    cache_hysteresis = 0.20,
 
     --
     -- Path to the directory where the scripts for the routes defined below are to be found
@@ -208,11 +219,12 @@ sipi = {
 
     --
     -- The secret for generating JWT's (JSON Web Tokens) (exactly 42 characters)
-    -- Inject via SIPI_JWT_SECRET in production. The fallback below is the stock
-    -- SIPI demo secret and is publicly known — never rely on it for a real
-    -- deployment. (JWT-gated routes are also denied at the nginx proxy.)
+    -- Inject via SIPI_JWT_SECRET in production. When it is unset we fall back
+    -- to a random per-boot secret: SIPI v10+ refuses to start on an empty,
+    -- short (<32 bytes) or stock-demo secret, and nothing here uses JWTs
+    -- (routes = {} below; JWT-gated routes are also denied at the nginx proxy).
     --
-    jwt_secret = env_or("SIPI_JWT_SECRET", 'UP 4888, nice 4-8-4 steam engine'),
+    jwt_secret = env_or("SIPI_JWT_SECRET", random_secret(42)),
     --            123456789012345678901234567890123456789012
 
     --
@@ -261,23 +273,12 @@ fileserver = {
 -- http://<server-DNS>/<route>
 -- executes the given script defined below
 --
--- Only the cache-management routes are kept. The stock SIPI demo routes that
--- are dangerous in production — GET /api/exit (shuts SIPI down), POST /api/upload
--- (arbitrary write), GET /api/token (mints JWTs), the /luaexe/* and /test/*
--- Lua-execution demos, and /sqlite — have been removed. They are unused by the
--- IIIF read path (image delivery is handled natively, not via this table) and
--- are additionally denied at the nginx proxy. The /api/cache routes remain for
--- the operator cache-purge workflow and are only reachable on the internal
--- network (nginx denies /sipi/api/*).
-routes = {
-    {
-        method = 'DELETE',
-        route = '/api/cache',
-        script = 'cache.lua'
-    },
-    {
-        method = 'GET',
-        route = '/api/cache',
-        script = 'cache.lua'
-    }
-}
+-- No Lua routes. The stock SIPI demo routes that are dangerous in production —
+-- GET /api/exit (shuts SIPI down), POST /api/upload (arbitrary write),
+-- GET /api/token (mints JWTs), the /luaexe/* and /test/* Lua-execution demos,
+-- and /sqlite — have been removed. They are unused by the IIIF read path (image
+-- delivery is handled natively, not via this table) and are additionally denied
+-- at the nginx proxy. The former /api/cache routes are gone too: the image never
+-- shipped scripts/cache.lua (every call errored), and SIPI v10 dropped the
+-- endpoint. Restart the container to clear the cache.
+routes = {}

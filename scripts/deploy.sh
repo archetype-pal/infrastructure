@@ -5,9 +5,15 @@
 #
 # Run from anywhere on the host; it works in the infrastructure checkout. Image
 # pins live in .env (compose interpolation), so pin by digest for exact rollback.
-# --if-changed exits early when both pins already match (scheduled runs).
+# --if-changed exits early when both pins already match (the poll timer).
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+# One deploy at a time: the poll timer, a push-triggered run and a manual run
+# must not interleave. A waiter reads the pins only once it holds the lock, so
+# an --if-changed run that queued behind a deploy of the same images is a no-op.
+exec 9>/run/lock/archetype-deploy.lock
+flock -w 1800 9 || { echo "Another deploy is still running after 30 minutes." >&2; exit 1; }
 
 backend="$1"
 frontend="$2"
@@ -47,18 +53,34 @@ up() {
 deploy() {
     set_pin BACKEND_IMAGE "$1"
     set_pin FRONTEND_IMAGE "$2"
-    docker compose pull --quiet api celery frontend
+    # Digest-pinned images never count as dangling, so -a. Images still in use,
+    # including the rollback pins, are kept.
+    docker image prune -a -f --filter "until=72h" >/dev/null
+    docker compose pull --quiet
     up
     # `docker compose run` inside these recipes reads stdin; detach it so a
     # caller's piped input (ssh 'bash -s' < script) is not swallowed.
     just migrate </dev/null
     just collectstatic </dev/null
+    # Apply the search index settings (filterable/sortable attributes) so a
+    # facet the new image adds never 400s. Idempotent, seconds, no reindex:
+    # a document-shape change still needs `just reindex` by hand.
+    just setup-search-indexes </dev/null
     smoke
 }
 
 echo "Deploying backend=$backend frontend=$frontend"
-if deploy "$backend" "$frontend"; then
-    docker image prune -f >/dev/null
+# Bash ignores `set -e` inside a function called as an `if` or `||` condition,
+# so a failed migration would carry on to "Deploy OK". Run the steps in a
+# subshell with errexit on instead, and read its status afterwards.
+set +e
+(
+    set -e
+    deploy "$backend" "$frontend"
+)
+status=$?
+set -e
+if [ "$status" -eq 0 ]; then
     echo "Deploy OK."
     exit 0
 fi

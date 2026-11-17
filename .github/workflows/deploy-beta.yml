@@ -1,15 +1,14 @@
 name: Deploy beta
 
 # Deploys to the beta host (beta.archetype-pal.ink) over SSH.
-# - push to main: config in this repo changed; redeploy with the latest images.
-# - schedule: pick up newly published backend/frontend images (no-op if unchanged).
-#   GitHub disables schedules after 60 days without repo activity; re-enable in the Actions tab.
+# - push to main: config in this repo changed; redeploy with the current images and
+#   refresh the host's poll timer (host/, scripts/install-poll-timer.sh).
 # - workflow_dispatch: deploy on demand, optionally pinning explicit images (rollback).
+# Newly published images are picked up by the timer on the host itself
+# (scripts/poll-images.sh), not from here: GitHub's cron ran hours late.
 on:
   push:
     branches: [main]
-  schedule:
-    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
       backend_image:
@@ -47,11 +46,10 @@ jobs:
           SSH_KEY: ${{ secrets.BETA_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.BETA_KNOWN_HOSTS }}
           HOST: ${{ vars.BETA_HOST }}
-          MODE: ${{ github.event_name == 'schedule' && '--if-changed' || '' }}
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           ssh "root@$HOST" \
-            "git -C /srv/archetype/infrastructure pull --ff-only -q && /srv/archetype/infrastructure/scripts/deploy.sh '$BACKEND' '$FRONTEND' $MODE"
+            "git -C /srv/archetype/infrastructure pull --ff-only -q && /srv/archetype/infrastructure/scripts/install-poll-timer.sh && /srv/archetype/infrastructure/scripts/deploy.sh '$BACKEND' '$FRONTEND'"

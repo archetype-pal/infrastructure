@@ -22,8 +22,9 @@ The `pg_backup` service in `infrastructure/compose.yaml`:
 - Retention: 14 days; older dumps are deleted on each run.
 - Partial writes land at `*.sql.gz.partial` so a half-written file is
   never confused with a real backup. On a clean run it's renamed in
-  place; on a failed run it is deleted, despite what the log line says
-  (see "Known gap" below), so **a failed dump leaves only a log line.**
+  place; on a failed run it stays for inspection and ages out with the
+  dumps after 14 days. The pipeline runs under `pipefail`, so a failed
+  `pg_dump` counts as a failure even though `gzip` succeeds.
 
 Not covered by this runbook (and **not** in the dump):
 
@@ -73,25 +74,13 @@ The failure shape to watch for:
   every cycle. Compose restarts it (`restart: unless-stopped`), but a
   consistently-restarting sidecar is a real fault; check `docker compose ps`.
 
-Age of the newest dump is the *only* reliable signal, because a failing dump
-leaves nothing behind but a log line. Grep for the failure directly:
+Age of the newest dump is the most reliable signal. A failed run also leaves
+its `.partial` and a `FAILED` log line:
 
 ```sh
+ls -lt backups/*.partial
 docker compose logs pg_backup | grep FAILED
 ```
-
-### Known gap
-
-`compose.yaml`'s failure branch deletes the partial it says it is keeping:
-
-```sh
-echo "[pg_backup] FAILED — leaving .partial for inspection" >&2
-rm -f "$$out.partial" || true          # ← contradicts the line above
-```
-
-Dropping the `rm -f` restores the documented behaviour and gives failures a
-durable artefact. It is left as-is pending a decision, because it changes what
-accumulates in `./backups/` on a persistently failing sidecar.
 
 ## Restore — full
 
@@ -169,7 +158,7 @@ haven't proved you have.
 
 ## Bumping retention
 
-`pg_backup` deletes dumps older than 14 days. Edit the `-mtime +14`
+`pg_backup` deletes dumps, and failed partials, older than 14 days. Edit the `-mtime +14`
 flag in `infrastructure/compose.yaml` to change it. Don't drop below
 7 days unless off-site retention covers the difference.
 
@@ -183,11 +172,13 @@ which runs:
 
 ```sh
 docker compose run --rm pg_backup sh -c \
-    'pg_dump "$DATABASE_URL" | gzip > /backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz'
+    'set -eu -o pipefail; out=/backups/local-manual-$(date -u +%Y%m%dT%H%M%SZ).sql.gz;
+     pg_dump "$DATABASE_URL" | gzip > "$out.partial"; mv "$out.partial" "$out"; echo "$out"'
 ```
 
-Use this before a destructive migration or schema rebase.
+Use this before a destructive migration or schema rebase. It prints the dump's
+path; if the dump fails it exits non-zero and leaves only the `.partial`.
 
 **Manual dumps are reaped on the same 14-day schedule.** The retention sweep
-matches `local-*.sql.gz`, and `local-manual-…` matches it too. If a pre-migration
+matches `local-*.sql.gz*`, and `local-manual-…` matches it too. If a pre-migration
 safety dump needs to outlive two weeks, copy it somewhere outside `./backups/`.

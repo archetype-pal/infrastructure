@@ -1,7 +1,7 @@
 name: archetype
 services:
   meilisearch:
-    image: getmeili/meilisearch:v1.50.0
+    image: getmeili/meilisearch:v1.56.1
     restart: unless-stopped
     environment:
       # MEILI_MASTER_KEY and MEILISEARCH_API_KEY live in env_file and must match.
@@ -11,7 +11,8 @@ services:
       # Migrate the on-disk index format in place when the image is bumped to a
       # newer Meilisearch. Without this, a version mismatch makes the server
       # refuse to start. No-op when versions already match. Safe — no embedders.
-      - MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE=true
+      # Meilisearch 1.55 ignores the old MEILI_EXPERIMENTAL_DUMPLESS_UPGRADE name.
+      - MEILI_UPGRADE_DB=true
     # No host `ports:` — Meilisearch is reachable only over the internal compose
     # network (the api/celery containers use http://meilisearch:7700). Exposing
     # it on the host would let anyone with network access read/write/delete every
@@ -128,7 +129,7 @@ services:
       retries: 3
       start_period: 30s
   image_server:
-    image: daschswiss/sipi:v5.0.1
+    image: daschswiss/sipi:v10.1.0  # keep in lockstep with backend/compose.yaml; see docs/sipi.md
     restart: ${RESTART}
     user: "14:50"
     # SIPI has no internal memory cap and has been OOM-killed while rendering
@@ -175,7 +176,7 @@ services:
   redis:
     # Pinned exactly rather than to the floating `8-alpine` tag, which silently
     # walked 8.0 -> 8.8 in place and made deploys non-reproducible.
-    image: redis:8.10.1-alpine
+    image: redis:8.10.3-alpine
     restart: ${RESTART}
     # Require a password (set REDIS_PASSWORD in .env). No host `ports:` —
     # Redis is reachable only over the internal compose network by api/celery.
@@ -258,7 +259,9 @@ services:
       - sh
       - -c
       - |
-        set -eu
+        # pipefail: without it the pipeline's status is gzip's, so a failed
+        # pg_dump would be renamed and logged as a good dump.
+        set -eu -o pipefail
         sleep 60
         mkdir -p /backups
         while true; do
@@ -269,10 +272,11 @@ services:
             mv "$$out.partial" "$$out"
             echo "[pg_backup] OK $$(wc -c < "$$out") bytes"
           else
-            echo "[pg_backup] FAILED — leaving .partial for inspection" >&2
-            rm -f "$$out.partial" || true
+            echo "[pg_backup] FAILED — leaving $$out.partial for inspection" >&2
           fi
-          find /backups -name 'local-*.sql.gz' -mtime +14 -delete
+          # Failed partials age out with the dumps, so a sidecar that keeps
+          # failing holds about two weeks of them, not an ever-growing pile.
+          find /backups -name 'local-*.sql.gz*' -mtime +14 -delete
           sleep 86400
         done
     volumes:
