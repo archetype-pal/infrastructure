@@ -180,6 +180,10 @@ backup:
 postgres-version:
     docker compose exec -T postgres bash -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SHOW server_version;"'
 
+# Open an interactive psql shell in the postgres container
+psql:
+    docker compose exec postgres bash -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+
 # Upgrade an existing PG17 volume to PG18 (see docs/postgresql-18-upgrade.md)
 postgres-upgrade-17-to-18:
     ./scripts/upgrade-postgres-17-to-18.sh
