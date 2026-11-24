@@ -136,3 +136,13 @@ Compose reads both only from here: its `environment:` values override
 `CELERY_RESULT_BACKEND`, `CACHE_URL`, `SECURE_SSL_REDIRECT=False` and
 `INTERNAL_API_URL=http://api`. With `MEILI_ENV=production`, also set
 `MEILISEARCH_API_KEY` to the value of `MEILI_MASTER_KEY`.
+
+The AI programme's keys in `env_file.example` (`ML_*`, `ANTHROPIC_API_KEY`,
+`DRF_THROTTLE_AGENT_RATE`, `AGENT_DEADLINE_SECONDS`, `LEARN_*`,
+`DRF_THROTTLE_LEARN_RATE`) are read only by a build
+of the AI programme branch (backend#202), which beta does not run. Leave
+them out of beta's `env_file`, or at their defaults: both switches false, no
+provider key. The glyph encoder service, `embedder`, and the reader, `htr`,
+are in the `ml` compose profile, the tutor's worker, `celery_learn`, in the
+`learn` profile, and the hourly clean-up, `learn_prune`, in both, so beta's
+`up` neither builds nor starts them.

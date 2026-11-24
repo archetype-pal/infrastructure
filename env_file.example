@@ -119,5 +119,75 @@ HISTORICAL_ITEM_HAIR_TYPES="FHFH,FHHF,HFFH,HFHF,Mixed"
 REPOSITORY_TYPES="Library,Institution,Person,Online Resource"
 CHARACTER_ITEM_TYPES="Majuscule Letter,Minuscule Letter,Numeral,Punctuation,Symbol,Accent"
 
+# ------------------------------- AI PROGRAMME -------------------------------
+# Read only by a backend built from the AI programme branch
+# (archetype-pal/backend#202); a build of main ignores them. Nothing runs and
+# nothing is sent anywhere until both switches below are true.
+#
+# The kill switch: while false, no model runs at all and the public agent
+# (/api/v1/agent/ask/) answers 503.
+ML_INFERENCE_ENABLED=false
+# Whether corpus material may be sent to a hosted provider (OpenRouter, or
+# Anthropic directly). Meant to follow the AI data policy, not yet written.
+ML_HOSTED_PROVIDERS_ENABLED=false
+# Spend caps over a rolling 24 hours, in millionths of the provider's currency
+# (5000000 = 5.00): one for the whole site, one per signed-in user. Anonymous
+# visitors to the agent count only against the site's cap; DRF_THROTTLE_AGENT_RATE
+# limits them one by one. The site's cap is $10 by default, and hosted providers
+# are refused unless it is above 0. 0 disables the per-person cap.
+ML_DAILY_COST_CAP_MICROS=10000000
+ML_DAILY_COST_CAP_MICROS_PER_ACTOR=0
+# Bulk runs stop once this many items wait for a reviewer, about a working week's
+# review for one person of each kind.
+# ML_REVIEW_LIMIT_LETTERS=1000
+# ML_REVIEW_LIMIT_CHARTERS=100
+# ML_REVIEW_LIMIT_DRAFTS=50
+# Which hosted provider Ask Archetype calls: openrouter or claude.
+# ML_AGENT_PROVIDER=openrouter
+# OpenRouter, the default hosted provider. The key is a secret: put it in the
+# host's env_file only.
+ML_OPENROUTER_API_KEY=
+# ML_OPENROUTER_MODEL=anthropic/claude-opus-5.5
+# Keep false: requests go only to upstreams that do not keep prompts for training.
+# ML_OPENROUTER_ALLOW_DATA_COLLECTION=false
+# Comma-separated upstream names, to pin who receives the material. Empty
+# allows any upstream that OpenRouter lists as not logging prompts.
+# ML_OPENROUTER_ALLOWED_PROVIDERS=
+# Anthropic, called directly. Its SDK reads the key from this variable.
+# ANTHROPIC_API_KEY=
+# ML_CLAUDE_MODEL=claude-opus-5-5
+# The self-hosted glyph encoder (the `embedder` service, profile `ml`). Set it
+# once that service runs; while empty, `embed_glyphs` cannot make vectors and
+# "letters like this" finds only glyphs embedded before.
+# ML_EMBEDDER_URL=http://embedder:8080
+# The self-hosted reader (the `htr` service, profile `ml`). Set it once that
+# service runs; while empty, `htr_baseline --provider kraken` cannot read a page.
+# ML_HTR_URL=http://htr:8080
+# The public agent: how often one visitor may ask, and how long it may work on
+# one question. nginx gives /api/v1/ 60 seconds (`proxy_read_timeout` in
+# nginx.conf and nginx.tunnel.conf), so keep the deadline below that and raise
+# both together.
+# DRF_THROTTLE_AGENT_RATE=10/hour
+# AGENT_DEADLINE_SECONDS=50
+# The palaeography tutor (/learn on the site). It calls Anthropic directly, so
+# it needs ANTHROPIC_API_KEY above as well as both switches. A lesson runs on
+# the celery worker for a few minutes, a turn at a time.
+# LEARN_TUTOR_MODEL=claude-fable-5-1
+# LEARN_TUTOR_EFFORT=high
+# Who may bring a picture of their own: signed-in, anyone or nobody. Corpus
+# pages are open to everyone. A picture is kept on this host and sent to
+# Anthropic to write its lesson.
+# LEARN_UPLOADS=signed-in
+# Lessons one visitor may start a day, and questions one lesson takes.
+# LEARN_DAILY_SESSIONS=10
+# LEARN_QUESTIONS_PER_SESSION=20
+# DRF_THROTTLE_LEARN_RATE=30/hour
+# Days a lesson and its pictures are kept; the learn_prune service deletes
+# them after that. The pictures are kept under storage/learn/, which nginx
+# and the image server do not serve.
+# LEARN_RETENTION_DAYS=30
+# Seconds a lesson or an answer may run on the worker before it gives up.
+# LEARN_TIME_LIMIT=1800
+
 # --------------------------- FRONTEND CONFIGURATION ---------------------------
 NEXT_PUBLIC_API_URL=http://localhost
